@@ -400,6 +400,11 @@ class Photometry_Data:
         self.right_selection_list = ['Right','right','R','r','After','after',2]
 
         self.trial_num = 1
+        
+        self.length_time = self.abet_time_list[0][1] - self.abet_time_list[0][0]
+        
+        self.measurements_per_interval = self.length_time * self.sample_frequency
+        
         if trial_definition == False:
             for time_set in self.abet_time_list:
                 self.start_index = self.doric_pd['Time'].sub(float(time_set[0])).abs().idxmin()
@@ -411,6 +416,12 @@ class Photometry_Data:
                 if self.doric_pd.iloc[self.end_index, 0] < float(time_set[1]):
                     self.end_index += 1
 
+                while len(range(self.start_index,(self.end_index + 1))) < self.measurements_per_interval:
+                    self.end_index += 1
+                    
+                while len(range(self.start_index,(self.end_index + 1))) > self.measurements_per_interval:
+                    self.end_index -= 1    
+                    
                 self.trial_deltaf = self.doric_pd.iloc[self.start_index:self.end_index]
                 if whole_trial_normalize == False:
                     if normalize_side in self.left_selection_list:
