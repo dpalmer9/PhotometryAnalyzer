@@ -171,8 +171,8 @@ class Photometry_Data:
                         self.active_start_time = float(row[0]) - extra_prior_time
                         self.active_end_time = float(row[0]) + extra_follow_time
 
-                        if self.active_start_time < 0:
-                            self.active_start_time = 0
+                        #if self.active_start_time < 0:
+                            #self.active_start_time = 0
 
                         self.time_series = [self.active_start_time,self.active_end_time]
                         self.abet_time_list.append(self.time_series)
@@ -404,16 +404,16 @@ class Photometry_Data:
         self.length_time = self.abet_time_list[0][1] - self.abet_time_list[0][0]
         
         self.measurements_per_interval = self.length_time * self.sample_frequency
-        
         if trial_definition == False:
             for time_set in self.abet_time_list:
                 self.start_index = self.doric_pd['Time'].sub(float(time_set[0])).abs().idxmin()
+
                 self.end_index = self.doric_pd['Time'].sub(float(time_set[1])).abs().idxmin()
 
-                if self.doric_pd.iloc[self.start_index, 0] > float(time_set[0]):
+                while self.doric_pd.iloc[self.start_index, 0] > float(time_set[0]):
                     self.start_index -= 1
 
-                if self.doric_pd.iloc[self.end_index, 0] < float(time_set[1]):
+                while self.doric_pd.iloc[self.end_index, 0] < float(time_set[1]):
                     self.end_index += 1
 
                 while len(range(self.start_index,(self.end_index + 1))) < self.measurements_per_interval:
@@ -478,11 +478,17 @@ class Photometry_Data:
                 self.start_index = self.doric_pd['Time'].sub(float(time_set[0])).abs().idxmin()
                 self.end_index = self.doric_pd['Time'].sub(float(time_set[1])).abs().idxmin()
 
-                if self.doric_pd.iloc[self.start_index, 0] > float(time_set[0]):
+                while self.doric_pd.iloc[self.start_index, 0] > float(time_set[0]):
                     self.start_index -= 1
 
-                if self.doric_pd.iloc[self.end_index, 0] < float(time_set[1]):
+                while self.doric_pd.iloc[self.end_index, 0] < float(time_set[1]):
                     self.end_index += 1
+                    
+                while len(range(self.start_index,(self.end_index + 1))) < self.measurements_per_interval:
+                    self.end_index += 1
+                    
+                while len(range(self.start_index,(self.end_index + 1))) > self.measurements_per_interval:
+                    self.end_index -= 1    
 
                 self.trial_deltaf = self.doric_pd[self.start_index:self.end_index]
                 if whole_trial_normalize == False:
@@ -604,14 +610,11 @@ class Photometry_Data:
         self.current_time_string = self.current_time.strftime('%d-%m-%Y %H-%M-%S')
 
         self.file_path_string = self.main_folder_path + self.folder_symbol + 'Output' + self.folder_symbol +  output_data + self.current_time_string + '.csv'
-        
-        print(self.file_path_string)
 
         if output_data in self.processed_list:
             self.doric_pd.to_csv(self.file_path_string,index=False)
         elif output_data in self.partial_list:
             self.partial_dataframe.to_csv(self.file_path_string,index=False)
-            print('success')
         elif output_data in self.final_list:
             self.final_dataframe.to_csv(self.file_path_string,index=False)
 
@@ -909,7 +912,7 @@ class Photometry_GUI:
             if self.centered_z_var.get() == 0:
                 self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=False)     
             elif self.centered_z_var.get() == 1:
-                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=True)
+                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=True, trial_definition = True)
 
 
             if self.simple_var.get() == 1:
