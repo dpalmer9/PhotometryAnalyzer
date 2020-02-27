@@ -22,6 +22,7 @@ import pandas as pd
 class Photometry_Data:
     def __init__(self):
 
+        self.curr_cpu_core_count = os.cpu_count()
         self.curr_dir = os.getcwd()
         if sys.platform == 'linux'or sys.platform == 'darwin':
             self.folder_symbol = '/'
@@ -51,255 +52,103 @@ class Photometry_Data:
     def load_abet_data(self,filepath):
         self.abet_file_path = filepath
         self.abet_loaded = True
-        #self.abet_file = pd.read_csv(self.abet_file_path)
+        abet_file = open(self.abet_file_path)
+        abet_csv_reader = csv.reader(abet_file)
+        abet_data_list = list()
+        abet_name_list = list()
+        colnames_found = False
+        for row in abet_csv_reader:
+            if colnames_found == False:
+                if len(row) == 0:
+                    continue
+                if row[0] == 'Evnt_Time':
+                    colnames_found = True
+                    abet_name_list.append(row[0],row[1],row[3],row[5],row[8])
+                else:
+                    continue
+            else:
+                abet_data_list.append([row[0],row[1],row[3],row[5],row[8]])
+        abet_file.close()
+        abet_numpy = np.array(abet_data_list)
+        self.abet_pandas = pd.DataFrame(data=abet_numpy[0:(np.size(abet_numpy,0) - 1),:],columns=abet_name_list)
 
-    def load_doric_data(self,filepath):
+    def load_doric_data(self,filepath,ch1_col,ch2_col,ttl_col):
         self.doric_file_path = filepath
-        #self.doric_file = pd.read_csv(self.doric_file_path)
+        self.doric_loaded = True
+        doric_file = open(self.doric_file_path)
+        doric_csv_reader = csv.reader(doric_file)
+        first_row_read = False
+        second_row_read = False
+        doric_name_list = list()
+        doric_list = list()
+        for row in doric_csv_reader:
+            if first_row_read == False:
+                first_row_read = True
+                continue
+            if second_row_read == False and first_row_read == True:
+                doric_name_list.append(row[0],row[ch1_col - 1],row[ch2_col - 1],row[ttl_col - 1])
+            else:
+                doric_list.append([row[0],row[ch1_col - 1],row[ch2_col - 1],row[ttl_col - 1]])
+        doric_file.close()
+        doric_numpy = np.array(doric_list)
+        self.doric_pandas = pd.DataFrame(data=doric_numpy[0:(np.size(doric_numpy,0) - 1),:],columns=doric_name_list)
+                
+                
 
     def load_anymaze_data(self,filepath):
         self.anymaze_file_path = filepath
         self.anymaze_loaded = True
-        #self.doric_file = pd.read_csv(self.doric_file_path)
-
-
-    def print_doric_colnames(self):
-        self.doric_file = open(self.doric_file_path)
-        self.doric_csv_reader = csv.reader(self.doric_file)
-
-        curr_row = 1
-
-        for row in self.doric_csv_reader:
-            if curr_row <= 3:
-                print(row)
-            elif curr_row > 3:
-                break
-            curr_row += 1
-
-        self.doric_file.close()
 
     def abet_trial_definition(self,start_event_group,end_event_group,extra_prior_time=0,extra_follow_time=0):
         if self.abet_loaded == False:
             return None
 
 
+        filtered_abet = self.abet_pandas.loc[((self.abet_pandas['Group_ID'] == str(start_event_group)) | (self.abet_pandas['Group_ID'] == str(end_event_group))) & (self.abet_pandas['Evnt_ID'] == '1')]
+        
+        if filtered_abet.iloc[0,3] != str(start_event_group):
+            print('FAILED')
+        
+        trial_times = filtered_abet.Evnt_Time
+        trial_times = trial_times.reset_index(drop=True)
+        start_times = trial_times.iloc[::2]
+        start_times = start_times.reset_index(drop=True)
+        end_times = trial_times.iloc[1::2]
+        end_times = end_times.reset_index(drop=True)
+        self.trial_definition_times = pd.concat([start_times,end_times],axis=1)
+        self.trial_definition_times.columns = ['Start_Time','End_Time']
 
-
-        self.series_started = False
-        self.colnames_found = False
-
-        self.extra_prior_definition = extra_prior_time
-        self.extra_follow_definition = extra_follow_time
-
-        self.abet_return_list = list()
-        self.abet_trial_time_list = list()
-
-        self.abet_file = open(self.abet_file_path)
-        self.abet_csv_reader = csv.reader(self.abet_file)
-
-        self.active_start_time = 0
-        self.active_end_time = 0
-
-        for row in self.abet_csv_reader:
-            if self.colnames_found == False:
-                if len(row) == 0:
-                    continue
-                if row[0] == 'Evnt_Time':
-                    self.colnames_found = True
-                else:
-                    continue
-            if self.series_started == False:
-                if row[5] == str(start_event_group):
-                    self.series_started = True
-                    self.active_start_time = float(row[0]) - extra_prior_time
-                    if self.active_start_time < 0:
-                        self.active_start_time = 0
-            else:
-                if row[5] == str(end_event_group):
-                    self.series_started = False
-                    self.active_end_time = float(row[0]) + extra_follow_time
-                    self.time_series = [self.active_start_time, self.active_end_time]
-                    self.abet_trial_time_list.append(self.time_series)
-                elif row[5] == str(start_event_group):
-                    self.series_started = True
-                    self.active_start_time = float(row[0]) - extra_follow_time
-
-
-        self.abet_file.close()
-
-    def abet_search_event(self,start_event_id='1',start_event_group='',start_event_item_name=list(''),start_event_position=[''],
+    def abet_search_event(self,start_event_id='1',start_event_group='',start_event_item_name='',start_event_position=[''],
                           end_event_id='1',end_event_group='',end_event_item_name=list(''),end_event_position=[''],centered_event=False,
                           extra_prior_time=0,extra_follow_time=0):
-        if self.abet_loaded == False:
-            return None
-
-
-
-
-        self.series_started = False
-        self.colnames_found = False
-
-        self.extra_prior = extra_prior_time
-        self.extra_follow = extra_follow_time
-
-        self.abet_return_list = list()
-        self.abet_time_list = list()
-
-        self.abet_file = open(self.abet_file_path)
-        self.abet_csv_reader = csv.reader(self.abet_file)
-
-        self.active_start_time = 0
-        self.active_end_time = 0
-
-        for row in self.abet_csv_reader:
-            if self.colnames_found == False:
-                if len(row) == 0:
-                    continue
-                if row[0] == 'Evnt_Time':
-                    self.colnames_found = True
-                else:
-                    continue
-
-            if str(row[1]) == str(start_event_id):
-                if centered_event == True:
-                    if (row[5] == str(start_event_group)) and (
-                            (str(row[3]) in start_event_item_name) or (start_event_item_name[0] == '')) and (
-                            (str(row[8]) in start_event_position) or (start_event_position[0] == '')):
-                        if (extra_prior_time <= 0) and (extra_follow_time <= 0):
-                            return None
-
-                        self.active_start_time = float(row[0]) - extra_prior_time
-                        self.active_end_time = float(row[0]) + extra_follow_time
-
-                        if self.active_start_time < 0:
-                            self.active_start_time = 0
-
-                        self.time_series = [self.active_start_time,self.active_end_time]
-                        self.abet_time_list.append(self.time_series)
-                else:
-                    if self.series_started == False:
-                        if (row[5] == str(start_event_group)) and (
-                                (str(row[3]) == str(start_event_item_name)) or (start_event_item_name == '')) and (
-                                (str(row[8]) == str(start_event_position)) or (start_event_position == '')):
-                            self.series_started = True
-                            self.active_start_time = float(row[0]) - extra_prior_time
-                            if self.active_start_time < 0:
-                                self.active_start_time = 0
-                    else:
-                        if (row[5] == str(end_event_group)) and (
-                                (row[3] == str(end_event_item_name)) or (end_event_item_name == '')) and (
-                                (row[8] == str(end_event_position)) or (end_event_position == '')):
-                            self.series_started = False
-                            self.active_end_time = float(row[0]) + extra_follow_time
-                            self.time_series = [self.active_start_time, self.active_end_time]
-                            self.abet_time_list.append(self.time_series)
-                        elif (row[5] == str(start_event_group)) and (
-                                (row[3] == str(start_event_item_name)) or (start_event_item_name == '')) and (
-                                (row[7] == str(start_event_position)) or (start_event_position == '')):
-                            self.series_started = True
-                            self.active_start_time = float(row[0]) - extra_follow_time
-
-        self.abet_file.close()
+        if str(start_event_id) == '30' or str(start_event_id) == '31':
+            filtered_abet = self.abet_pandas.loc[(self.abet_pandas['Evnt_ID'] == str(start_event_id)) & (self.abet_pandas['Group_ID'] == str(start_event_group)) & 
+                                                 (self.abet_pandas['Item_Name'] == str(start_event_item_name)) & (self.abet_pandas['Arg1_Value'] == str(start_event_position))] 
+    
+        else:
+            filtered_abet = self.abet_pandas.loc[(self.abet_pandas['Evnt_ID'] == str(start_event_id)) & (self.abet_pandas['Group_ID'] == str(start_event_group)) &
+                                                (self.abet_pandas['Item_Name'] == str(start_event_item_name))]
+            
+        
+        self.abet_event_times = filtered_abet.Evnt_Time
+        self.abet_event_times = self.abet_event_times.reset_index(drop=True)
+        self.abet_event_times['Start_Time'] = self.abet_event_times.loc['Evnt_Time'].astype('float64') - extra_prior_time
+        self.abet_event_times['End_Time'] = self.abet_event_times.loc['Evnt_Time'].astype('float64') + extra_follow_time
 
     def anymaze_search_event_OR(self,event_type='distance',distance_threshold=3.00,distance_event_tolerance=0.03,heading_error_threshold=20,centered_event=True,extra_prior_time=2.5,extra_follow_time=2.5):
-        if event_type == 'distance':
-            tracking_cols = [[10,12],[14,16]]
-            self.active_start_time = 0
-            self.active_end_time = 0
-            self.anymaze_file = open(self.anymaze_file_path, 'r')
-            self.anymaze_csv_reader = csv.reader(self.anymaze_file)
-            self.abet_time_list = list()
-
-            for row in self.anymaze_csv_reader:
-                if row[0] == 'Time':
-                    continue
-                for col in tracking_cols:
-                    if row[col[0]] == '':
-                        continue
-                    if row[col[1]] == '':
-                        continue
-                    if float(row[col[1]]) == 1 and float(row[col[0]]) <= distance_event_tolerance:
-                        if (float(row[0]) - (self.active_start_time + extra_prior_time)) < distance_threshold:
-                            continue
-                        self.active_start_time = float(row[0]) - extra_prior_time
-                        self.active_end_time = float(row[0]) + extra_follow_time
-                        self.time_series = [self.active_start_time, self.active_end_time]
-                        self.abet_time_list.append(self.time_series)
-            self.anymaze_file.close()
-        elif event_type == 'viewing':
-            tracking_cols = [[10,12],[14,16]]
-            self.active_start_time = 0
-            self.active_end_time = 0
-            self.anymaze_file = open(self.anymaze_file_path, 'r')
-            self.anymaze_csv_reader = csv.reader(self.anymaze_file)
-            self.abet_time_list = list()
-
-            for row in self.anymaze_csv_reader:
-                if row[0] == 'Time':
-                    continue
-                for col in tracking_cols:
-                    if row[col[1]] == '':
-                        continue
-                    if row[col[0]] == '':
-                        continue
-                    if float(row[col[1]]) == 1 and float(row[col[0]]) > distance_event_tolerance:
-                        if (float(row[0]) - (self.active_start_time + extra_prior_time)) < distance_threshold:
-                            continue
-                        self.active_start_time = float(row[0]) - extra_prior_time
-                        self.active_end_time = float(row[0]) + extra_follow_time
-                        self.time_series = [self.active_start_time, self.active_end_time]
-                        self.abet_time_list.append(self.time_series)
-            self.anymaze_file.close()
+        return
 
 
 
     def abet_doric_synchronize(self,ttl_col):
         if self.abet_loaded == False:
             return None
-        self.abet_ttl_time = 0
-        self.doric_ttl_time = 0
-
-        self.ttl_col = 0
-
-        self.abet_file = open(self.abet_file_path)
-        self.abet_csv_reader = csv.reader(self.abet_file)
-        self.colnames_found = False
-
-        self.doric_file = open(self.doric_file_path)
-        self.doric_csv_reader = csv.reader(self.doric_file)
-
-        for row in self.abet_csv_reader:
-            if self.colnames_found == False:
-                if len(row) == 0:
-                    continue
-
-                if row[0] == 'Evnt_Time':
-                    self.colnames_found = True
-                    self.colnames = row
-                    continue
-                else:
-                    continue
-            else:
-                if row[3] == 'TTL #1':
-                    self.abet_ttl_time = float(row[0])
-                    break
-
-        self.abet_file.close()
-
-        self.doric_row = 1
-        for row in self.doric_csv_reader:
-            if self.doric_row < 3:
-                self.doric_row += 1
-                continue
-            if row[ttl_col] == '':
-                continue
-            if float(row[ttl_col]) > 1:
-                self.doric_ttl_time = float(row[0])
-                break
-
-
-        self.doric_file.close()
-        self.abet_doric_sync_value = self.doric_ttl_time - self.abet_ttl_time
+        if self.doric_loaded == False:
+            return None
+        
+        doric_ttl_active = self.doric_pandas.loc[(self.doric_pandas[''] > 3.00)]
+        abet_ttl_active = self.abet_pandas.loc[(self.abet_pandas['Item_Name'] == 'TTL #1')]
+                                        
 
     def anymaze_doric_synchronize_OR(self,ttl_col,ttl_interval):
         if self.anymaze_loaded == False:
@@ -404,16 +253,16 @@ class Photometry_Data:
         self.length_time = self.abet_time_list[0][1] - self.abet_time_list[0][0]
         
         self.measurements_per_interval = self.length_time * self.sample_frequency
-        
         if trial_definition == False:
             for time_set in self.abet_time_list:
                 self.start_index = self.doric_pd['Time'].sub(float(time_set[0])).abs().idxmin()
+
                 self.end_index = self.doric_pd['Time'].sub(float(time_set[1])).abs().idxmin()
 
-                if self.doric_pd.iloc[self.start_index, 0] > float(time_set[0]):
+                while self.doric_pd.iloc[self.start_index, 0] > float(time_set[0]):
                     self.start_index -= 1
 
-                if self.doric_pd.iloc[self.end_index, 0] < float(time_set[1]):
+                while self.doric_pd.iloc[self.end_index, 0] < float(time_set[1]):
                     self.end_index += 1
 
                 while len(range(self.start_index,(self.end_index + 1))) < self.measurements_per_interval:
@@ -478,10 +327,10 @@ class Photometry_Data:
                 self.start_index = self.doric_pd['Time'].sub(float(time_set[0])).abs().idxmin()
                 self.end_index = self.doric_pd['Time'].sub(float(time_set[1])).abs().idxmin()
 
-                if self.doric_pd.iloc[self.start_index, 0] > float(time_set[0]):
+                while self.doric_pd.iloc[self.start_index, 0] > float(time_set[0]):
                     self.start_index -= 1
 
-                if self.doric_pd.iloc[self.end_index, 0] < float(time_set[1]):
+                while self.doric_pd.iloc[self.end_index, 0] < float(time_set[1]):
                     self.end_index += 1
                     
                 while len(range(self.start_index,(self.end_index + 1))) < self.measurements_per_interval:
@@ -711,6 +560,9 @@ class Photometry_GUI:
         self.anymaze_field.insert(END,str(self.anymaze_file_path))
 
     def abet_event_definition_gui(self):
+        
+        
+        
 
         self.iti_zscoring = tk.IntVar()
         self.iti_zscoring.set(self.iti_normalize)
@@ -887,7 +739,7 @@ class Photometry_GUI:
             
             self.photometry_object = Photometry_Data()
             self.photometry_object.load_doric_data(self.doric_file_path)
-            self.photometry_object.load_abet_data(self.abet_file_path)
+            self.photometry_object.load_abet_data(self.abet_file_path,self.channel_control_var,self.channel_active_var,self.ttl_col)
 
             if self.iti_normalize == 1:
                 self.photometry_object.abet_trial_definition(self.abet_trial_start_var,self.abet_trial_end_var,extra_prior_time=float(self.abet_trial_iti_var))
@@ -897,7 +749,7 @@ class Photometry_GUI:
                                                          extra_follow_time=float(self.event_follow_var),centered_event=True,start_event_item_name = self.event_name_var)
             else:
                 self.photometry_object.abet_search_event(start_event_id=self.event_id_var,start_event_group=self.event_group_var,extra_prior_time=float(self.event_prior_var),
-                                                         extra_follow_time=float(self.event_follow_var),centered_event=True,start_event_position = [self.event_position_var],
+                                                         extra_follow_time=float(self.event_follow_var),centered_event=True,start_event_position = self.event_position_var,
                                                          start_event_item_name = self.event_name_var)
 
             self.ttl_col = int(self.channel_ttl_var) - 1
@@ -912,7 +764,7 @@ class Photometry_GUI:
             if self.centered_z_var.get() == 0:
                 self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=False)     
             elif self.centered_z_var.get() == 1:
-                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=True)
+                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=True, trial_definition = True)
 
 
             if self.simple_var.get() == 1:
