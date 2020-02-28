@@ -12,6 +12,7 @@ from tkinter import E
 from tkinter import END
 from tkinter import BROWSE
 from tkinter import VERTICAL
+from tkinter import ttk
 import numpy as np
 from tkinter import filedialog
 from scipy import fftpack
@@ -92,6 +93,7 @@ class Photometry_Data:
         doric_file.close()
         doric_numpy = np.array(doric_list)
         self.doric_pandas = pd.DataFrame(data=doric_numpy[0:(np.size(doric_numpy,0) - 1),:],columns=doric_name_list)
+        self.doric_pandas.columns = ['Time','Control','Active','TTL']
                 
                 
 
@@ -132,8 +134,8 @@ class Photometry_Data:
         
         self.abet_event_times = filtered_abet.Evnt_Time
         self.abet_event_times = self.abet_event_times.reset_index(drop=True)
-        self.abet_event_times['Start_Time'] = self.abet_event_times.loc['Evnt_Time'].astype('float64') - extra_prior_time
-        self.abet_event_times['End_Time'] = self.abet_event_times.loc['Evnt_Time'].astype('float64') + extra_follow_time
+        self.abet_event_times.loc['Start_Time'] = self.abet_event_times.loc['Evnt_Time'].astype('float64') - extra_prior_time
+        self.abet_event_times.loc['End_Time'] = self.abet_event_times.loc['Evnt_Time'].astype('float64') + extra_follow_time
 
     def anymaze_search_event_OR(self,event_type='distance',distance_threshold=3.00,distance_event_tolerance=0.03,heading_error_threshold=20,centered_event=True,extra_prior_time=2.5,extra_follow_time=2.5):
         return
@@ -146,8 +148,15 @@ class Photometry_Data:
         if self.doric_loaded == False:
             return None
         
-        doric_ttl_active = self.doric_pandas.loc[(self.doric_pandas[''] > 3.00)]
+        doric_ttl_active = self.doric_pandas.loc[(self.doric_pandas['TTL'] > 3.00)]
         abet_ttl_active = self.abet_pandas.loc[(self.abet_pandas['Item_Name'] == 'TTL #1')]
+
+        doric_time = doric_ttl_active.iloc[0,0]
+        abet_time = abet_ttl_active.iloc[0,0]
+
+        self.abet_doric_sync_value = doric_time - abet_time
+
+        self.doric_pandas.loc['Time'] = self.doric_pandas['Time'] - self.abet_doric_sync_value
                                         
 
     def anymaze_doric_synchronize_OR(self,ttl_col,ttl_interval):
@@ -199,272 +208,240 @@ class Photometry_Data:
         self.doric_file.close()
         self.abet_doric_sync_value = self.doric_ttl_time - self.anymaze_ttl_time
 
-    def doric_process(self,ch_405_col,ch_465_col,filter_frequency=6):
-        self.doric_file = open(self.doric_file_path)
-        self.doric_csv_reader = csv.reader(self.doric_file)
+    def doric_process(self,filter_frequency=6):
 
-        self.colname_list = list()
-        self.condensed_doric = list()
+        time_data = self.doric_pandas['Time'].to_numpy()
+        f0_data = self.doric_pandas['Control'].to_numpy()
+        f_data = self.doric_pandas['Active'].to_numpy()
 
-        self.doric_row = 1
-        for row in self.doric_csv_reader:
-            if self.doric_row < 3:
-                self.doric_row += 1
-                self.colname_list.append([row[0],row[ch_405_col],row[ch_465_col]])
-                continue
-            self.doric_time = float(row[0]) - self.abet_doric_sync_value
-            self.condensed_doric.append([self.doric_time,row[ch_405_col],row[ch_465_col]])
+        time_data = time_data.astype(float)
+        f0_data = f0_data.astype(float)
+        f_data = f_data.astype(float)
 
-        self.doric_file.close()
-
-        self.condensed_doric = np.asarray(self.condensed_doric).astype('float')
-        self.condensed_doric.dtype = 'float'
-
-        self.time_data = self.condensed_doric[:,0].astype(float)
-        self.f0_data = self.condensed_doric[:,1].astype(float)
-        self.f_data = self.condensed_doric[:,2].astype(float)
-
-        self.sample_frequency = len(self.time_data) / self.time_data[(len(self.time_data) - 1)]
-        self.filter_frequency_normalized = filter_frequency / (self.sample_frequency/2)
-        self.butter_filter = signal.butter(N=2,Wn=filter_frequency,
+        self.sample_frequency = len(time_data) / time_data[(len(time_data) - 1)]
+        filter_frequency_normalized = filter_frequency / (self.sample_frequency/2)
+        butter_filter = signal.butter(N=2,Wn=filter_frequency,
                                            btype='lowpass',analog=False,
                                            output='sos',fs=self.sample_frequency)
-        self.filtered_f0 = signal.sosfilt(self.butter_filter,self.f0_data)
-        self.filtered_f = signal.sosfilt(self.butter_filter,self.f_data)
+        filtered_f0 = signal.sosfilt(butter_filter,f0_data)
+        filtered_f = signal.sosfilt(butter_filter,f_data)
         
-        self.f0_a_data = np.vstack([self.filtered_f0,np.ones(len(self.filtered_f0))]).T
-        self.m,self.c = np.linalg.lstsq(self.f0_a_data,self.filtered_f,rcond=None)[0]
-        self.f0_fitted = (self.filtered_f0.astype(np.float) * self.m) + self.c
+        f0_a_data = np.vstack([filtered_f0,np.ones(len(filtered_f0))]).T
+        m,c = np.linalg.lstsq(f0_a_data,filtered_f,rcond=None)[0]
+        f0_fitted = (filtered_f0.astype(np.float) * m) + c
 
-        self.delta_f = (self.filtered_f.astype(float) - self.f0_fitted.astype(float)) / self.f0_fitted.astype(float)
+        delta_f = (filtered_f.astype(float) - f0_fitted.astype(float)) / f0_fitted.astype(float)
 
-        self.doric_pd = pd.DataFrame(self.time_data)
-        self.doric_pd['DeltaF'] = self.delta_f
+        self.doric_pd = pd.DataFrame(time_data)
+        self.doric_pd['DeltaF'] = delta_f
         self.doric_pd = self.doric_pd.rename(columns={0:'Time',1:'DeltaF'})
 
-    def trial_separator(self,normalize=True,whole_trial_normalize=True,normalize_side = 'Left',trial_definition = False):
+    def trial_separator(self,normalize=True,whole_trial_normalize=True,normalize_side = 'Left',trial_definition = False,trial_iti_pad=0):
         if self.abet_loaded == False and self.anymaze_loaded == False:
             return
-        self.left_selection_list = ['Left','Before','L','l','left','before',1]
-        self.right_selection_list = ['Right','right','R','r','After','after',2]
+        left_selection_list = ['Left','Before','L','l','left','before',1]
+        right_selection_list = ['Right','right','R','r','After','after',2]
 
-        self.trial_num = 1
+        trial_num = 1
         
-        self.length_time = self.abet_time_list[0][1] - self.abet_time_list[0][0]
+        length_time = self.abet_time_list.iloc[0,1]- self.abet_time_list.iloc[0,0]
         
-        self.measurements_per_interval = self.length_time * self.sample_frequency
+        measurements_per_interval = length_time * self.sample_frequency
         if trial_definition == False:
-            for time_set in self.abet_time_list:
-                self.start_index = self.doric_pd['Time'].sub(float(time_set[0])).abs().idxmin()
 
-                self.end_index = self.doric_pd['Time'].sub(float(time_set[1])).abs().idxmin()
+            for index, row in self.abet_time_list.iterrows():
+                start_index = self.doric_pd['Time'].sub(float(self.abet_time_list['Start_Time'])).abs().idxmin()
+                end_index = self.doric_pd['Time'].sub(float(self.abet_time_list['End_Time'])).abs().idxmin()
 
-                while self.doric_pd.iloc[self.start_index, 0] > float(time_set[0]):
-                    self.start_index -= 1
+                while self.doric_pd.iloc[start_index, 0] > float(self.abet_time_list['Start_Time']):
+                    start_index -= 1
 
-                while self.doric_pd.iloc[self.end_index, 0] < float(time_set[1]):
-                    self.end_index += 1
+                while self.doric_pd.iloc[end_index, 0] < float(self.abet_time_list['End_Time']):
+                    end_index += 1
 
-                while len(range(self.start_index,(self.end_index + 1))) < self.measurements_per_interval:
-                    self.end_index += 1
+                while len(range(start_index,(end_index + 1))) < measurements_per_interval:
+                    end_index += 1
                     
-                while len(range(self.start_index,(self.end_index + 1))) > self.measurements_per_interval:
-                    self.end_index -= 1    
-                    
-                self.trial_deltaf = self.doric_pd.iloc[self.start_index:self.end_index]
+                while len(range(start_index,(end_index + 1))) > measurements_per_interval:
+                    end_index -= 1
+
+                trial_deltaf = self.doric_pd.iloc[start_index:end_index]
                 if whole_trial_normalize == False:
-                    if normalize_side in self.left_selection_list:
-                        self.norm_start_time = float(time_set[0])
-                        self.norm_end_time = float(time_set[0]) + self.extra_prior
-                        self.iti_deltaf = self.trial_deltaf.loc[
-                            self.trial_deltaf['Time'] < self.norm_end_time, 'DeltaF']
-                    elif normalize_side in self.right_selection_list:
-                        self.norm_start_time = float(time_set[1]) - self.extra_follow
-                        self.norm_end_time = float(time_set[1])
-                        self.iti_deltaf = self.trial_deltaf.loc[
-                            self.trial_deltaf['Time'] > self.norm_start_time, 'DeltaF']
-                    self.z_mean = self.iti_deltaf.mean()
-                    self.z_sd = self.iti_deltaf.std()
+                    if normalize_side in left_selection_list:
+                        norm_start_time = float(self.abet_time_list['Start_Time'])
+                        norm_end_time = float(self.abet_time_list['Start_Time']) + trial_iti_pad
+                        iti_deltaf = trial_deltaf.loc[
+                            trial_deltaf['Time'] < norm_end_time, 'DeltaF']
+                    elif normalize_side in right_selection_list:
+                        norm_start_time = float(self.abet_time_list['End_Time']) - trial_iti_pad
+                        norm_end_time = float(self.abet_time_list['End_Time'])
+                        iti_deltaf = trial_deltaf.loc[
+                            trial_deltaf['Time'] > norm_start_time, 'DeltaF']
+                    z_mean = iti_deltaf.mean()
+                    z_sd = iti_deltaf.std()
                 else:
-                    self.deltaf_split = self.trial_deltaf.loc[:, 'DeltaF']
-                    self.z_mean = self.deltaf_split.mean()
-                    self.z_sd = self.deltaf_split.std()
-                self.trial_deltaf['zscore'] = (self.trial_deltaf['DeltaF'] - self.z_mean) / self.z_sd
+                    deltaf_split = trial_deltaf.loc[:, 'DeltaF']
+                    z_mean = deltaf_split.mean()
+                    z_sd = deltaf_split.std()
+                trial_deltaf['zscore'] = (trial_deltaf['DeltaF'] - z_mean) / z_sd
 
-                self.colname_1 = 'Time Trial ' + str(self.trial_num)
-                self.colname_2 = 'Z-Score Trial ' + str(self.trial_num)
+                colname_1 = 'Time Trial ' + str(trial_num)
+                colname_2 = 'Z-Score Trial ' + str(trial_num)
 
-                if self.trial_num == 1:
-                    self.final_dataframe = self.trial_deltaf.loc[:, ('Time', 'zscore')]
+                if trial_num == 1:
+                    self.final_dataframe = trial_deltaf.loc[:, ('Time', 'zscore')]
                     self.final_dataframe = self.final_dataframe.reset_index(drop=True)
                     self.final_dataframe = self.final_dataframe.rename(
-                        columns={'Time': self.colname_1, 'zscore': self.colname_2})
+                        columns={'Time': colname_1, 'zscore': colname_2})
 
-                    self.partial_dataframe = self.trial_deltaf.loc[:, 'zscore']
+                    self.partial_dataframe = trial_deltaf.loc[:, 'zscore']
                     self.partial_dataframe = self.partial_dataframe.to_frame()
                     self.partial_dataframe = self.partial_dataframe.reset_index(drop=True)
-                    self.partial_dataframe = self.partial_dataframe.rename(columns={'zscore': self.colname_2})
-                    self.trial_num += 1
+                    self.partial_dataframe = self.partial_dataframe.rename(columns={'zscore': colname_2})
+                    trial_num += 1
                 else:
-                    self.trial_deltaf = self.trial_deltaf.reset_index(drop=True)
-                    self.dataframe_len = len(self.final_dataframe.index)
-                    self.trial_len = len(self.trial_deltaf.index)
-                    if self.trial_len > self.dataframe_len:
-                        self.len_diff = self.trial_len - self.dataframe_len
-                        self.new_index = list(range(self.dataframe_len, (self.dataframe_len + self.len_diff)))
+                    trial_deltaf = trial_deltaf.reset_index(drop=True)
+                    dataframe_len = len(self.final_dataframe.index)
+                    trial_len = len(trial_deltaf.index)
+                    if trial_len > dataframe_len:
+                        len_diff = trial_len - dataframe_len
+                        new_index = list(range(dataframe_len, (dataframe_len + len_diff)))
                         self.final_dataframe = self.final_dataframe.reindex(
-                            self.final_dataframe.index.union(self.new_index))
+                            self.final_dataframe.index.union(new_index))
                         self.partial_dataframe = self.partial_dataframe.reindex(
-                            self.partial_dataframe.index.union(self.new_index))
+                            self.partial_dataframe.index.union(new_index))
 
-                    self.partial_dataframe[self.colname_2] = self.trial_deltaf['zscore']
-                    self.final_dataframe[self.colname_1] = self.trial_deltaf['Time']
-                    self.final_dataframe[self.colname_2] = self.trial_deltaf['zscore']
-                    self.trial_num += 1
+                    self.partial_dataframe[colname_2] = trial_deltaf['zscore']
+                    self.final_dataframe[colname_1] = trial_deltaf['Time']
+                    self.final_dataframe[colname_2] = trial_deltaf['zscore']
+                    trial_num += 1
                     
         elif trial_definition == True:
-            for time_set in self.abet_trial_time_list:
-                self.start_index = self.doric_pd['Time'].sub(float(time_set[0])).abs().idxmin()
-                self.end_index = self.doric_pd['Time'].sub(float(time_set[1])).abs().idxmin()
+            for index, row in self.abet_time_list.iterrows():
+                start_index = self.doric_pd['Time'].sub(float(self.abet_time_list['Start_Time'])).abs().idxmin()
+                end_index = self.doric_pd['Time'].sub(float(self.abet_time_list['End_Time'])).abs().idxmin()
 
-                while self.doric_pd.iloc[self.start_index, 0] > float(time_set[0]):
-                    self.start_index -= 1
+                while self.doric_pd.iloc[start_index, 0] > float(self.abet_time_list['Start_Time']):
+                    start_index -= 1
 
-                while self.doric_pd.iloc[self.end_index, 0] < float(time_set[1]):
-                    self.end_index += 1
+                while self.doric_pd.iloc[end_index, 0] < float(self.abet_time_list['End_Time']):
+                    end_index += 1
+
+                while len(range(start_index,(end_index + 1))) < measurements_per_interval:
+                    end_index += 1
                     
-                while len(range(self.start_index,(self.end_index + 1))) < self.measurements_per_interval:
-                    self.end_index += 1
-                    
-                while len(range(self.start_index,(self.end_index + 1))) > self.measurements_per_interval:
-                    self.end_index -= 1    
+                while len(range(start_index,(end_index + 1))) > measurements_per_interval:
+                    end_index -= 1
 
-                self.trial_deltaf = self.doric_pd[self.start_index:self.end_index]
+                trial_deltaf = self.doric_pd.iloc[start_index:end_index]
                 if whole_trial_normalize == False:
                     if normalize_side in self.left_selection_list:
-                        self.norm_start_time = float(time_set[0])
-                        self.norm_end_time = float(time_set[0]) + self.extra_prior_definition
-                        self.iti_deltaf = self.trial_deltaf.loc[
-                            self.trial_deltaf['Time'] < self.norm_end_time, 'DeltaF']
+                        trial_start_index = self.trial_definition_times['Start_Time'].sub(float(self.abet_time_list['Start_Time'])).abs().idxmin()
+                        trial_start_window = self.trial_definition_times.iloc[trial_start_index,0]
+                        trial_iti_window = trial_start_window - trial_iti_pad
+                        iti_data = self.doric_pd.loc[(self.doric_pd[''] >= trial_iti_window) & (self.doric_pd[''] <= trial_start_window),'DeltaF']
                     elif normalize_side in self.right_selection_list:
-                        self.norm_start_time = float(time_set[1]) - self.extra_follow_definition
-                        self.norm_end_time = float(time_set[1])
-                        self.iti_deltaf = self.trial_deltaf.loc[
-                            self.trial_deltaf['Time'] > self.norm_start_time, 'DeltaF']
-                    self.z_mean = self.iti_deltaf.mean()
-                    self.z_sd = self.iti_deltaf.std()
+                        trial_end_index = self.trial_definition_times['End_Time'].sub(float(self.abet_time_list['End_Time'])).abs().idxmin()
+                        trial_end_window = self.trial_definition_times.iloc[trial_end_index,0]
+                        trial_iti_window = trial_end_window + trial_iti_pad
+                        iti_data = self.doric_pd.loc[(self.doric_pd[''] >= trial_end_window) & (self.doric_pd[''] <= trial_iti_window),'DeltaF']
+
+                    z_mean = iti_data.mean()
+                    z_sd = iti_data.std()
                 else:
-                    self.deltaf_split = self.trial_deltaf.loc[:, 'DeltaF']
-                    self.z_mean = self.deltaf_split.mean()
-                    self.z_sd = self.deltaf_split.std()
-                self.trial_deltaf['zscore'] = (self.trial_deltaf['DeltaF'] - self.z_mean) / self.z_sd
+                    deltaf_split = trial_deltaf.loc[:, 'DeltaF']
+                    z_mean = deltaf_split.mean()
+                    z_sd = deltaf_split.std()
+                trial_deltaf['zscore'] = (trial_deltaf['DeltaF'] - z_mean) / z_sd
 
+                colname_1 = 'Time Trial ' + str(trial_num)
+                colname_2 = 'Z-Score Trial ' + str(trial_num)
 
-
-                if self.trial_num == 1:
-                    self.trial_dataframe = self.trial_deltaf[:,('Time','zscore')]
-                    self.trial_num += 1
-                else:
-                    self.add_frame = self.trial_deltaf[:,('Time','zscore')]
-                    self.trial_dataframe = self.trial_dataframe.append(self.add_frame,sort=False)
-                    self.trial_num += 1
-            self.trial_num = 1
-            for time_set in self.abet_time_list:
-                self.start_index = self.trial_dataframe['Time'].sub(float(time_set[0])).abs().idxmin()
-                self.end_index = self.trial_dataframe['Time'].sub(float(time_set[1])).abs().idxmin()
-                if self.trial_dataframe.iloc[self.start_index, 0] > float(time_set[0]):
-                    self.start_index -= 1
-
-                if self.trial_dataframe.iloc[self.end_index, 0] < float(time_set[1]):
-                    self.end_index += 1
-                self.trial_zscore = self.trial_dataframe[self.start_index:self.end_index]
-                self.colname_1 = 'Time Trial ' + str(self.trial_num)
-                self.colname_2 = 'Z-Score Trial ' + str(self.trial_num)
-                if self.trial_num == 1:
-                    self.final_dataframe = self.trial_zscore.loc[:, ('Time', 'zscore')]
+                if trial_num == 1:
+                    self.final_dataframe = trial_deltaf.loc[:, ('Time', 'zscore')]
                     self.final_dataframe = self.final_dataframe.reset_index(drop=True)
                     self.final_dataframe = self.final_dataframe.rename(
-                        columns={'Time': self.colname_1, 'zscore': self.colname_2})
+                        columns={'Time': colname_1, 'zscore': colname_2})
 
-                    self.partial_dataframe = self.trial_zscore.loc[:, 'zscore']
+                    self.partial_dataframe = trial_deltaf.loc[:, 'zscore']
                     self.partial_dataframe = self.partial_dataframe.to_frame()
                     self.partial_dataframe = self.partial_dataframe.reset_index(drop=True)
-                    self.partial_dataframe = self.partial_dataframe.rename(columns={'zscore': self.colname_2})
-                    self.trial_num += 1
+                    self.partial_dataframe = self.partial_dataframe.rename(columns={'zscore': colname_2})
+                    trial_num += 1
                 else:
-                    self.trial_deltaf = self.trial_zscore.reset_index(drop=True)
-                    self.dataframe_len = len(self.final_dataframe.index)
-                    self.trial_len = len(self.trial_zscore.index)
-                    if self.trial_len > self.dataframe_len:
-                        self.len_diff = self.trial_len - self.dataframe_len
-                        self.new_index = list(range(self.dataframe_len, (self.dataframe_len + self.len_diff)))
+                    trial_deltaf = trial_deltaf.reset_index(drop=True)
+                    dataframe_len = len(self.final_dataframe.index)
+                    trial_len = len(trial_deltaf.index)
+                    if trial_len > dataframe_len:
+                        len_diff = trial_len - dataframe_len
+                        new_index = list(range(dataframe_len, (dataframe_len + len_diff)))
                         self.final_dataframe = self.final_dataframe.reindex(
-                            self.final_dataframe.index.union(self.new_index))
+                            self.final_dataframe.index.union(new_index))
                         self.partial_dataframe = self.partial_dataframe.reindex(
-                            self.partial_dataframe.index.union(self.new_index))
+                            self.partial_dataframe.index.union(new_index))
 
-                    self.partial_dataframe[self.colname_2] = self.trial_zscore['zscore']
-                    self.final_dataframe[self.colname_1] = self.trial_zscore['Time']
-                    self.final_dataframe[self.colname_2] = self.trial_zscore['zscore']
-                    self.trial_num += 1
+                    self.partial_dataframe[colname_2] = trial_deltaf['zscore']
+                    self.final_dataframe[colname_1] = trial_deltaf['Time']
+                    self.final_dataframe[colname_2] = trial_deltaf['zscore']
+                    trial_num += 1
 
     def write_data(self,output_data,include_abet=False):
-        self.processed_list = [1,'Full','full']
-        self.partial_list = [2,'Simple','simple']
-        self.final_list = [3,'Timed','timed']
+        processed_list = [1,'Full','full']
+        partial_list = [2,'Simple','simple']
+        final_list = [3,'Timed','timed']
 
         if self.abet_loaded == True:
             if include_abet == True:
-                self.end_path = filedialog.asksaveasfilename(title='Save Output Data',
+                end_path = filedialog.asksaveasfilename(title='Save Output Data',
                                                         filetypes=(('Excel File', '*.xlsx'), ('all files', '*.')))
 
-                self.abet_file = open(self.abet_file_path)
-                self.abet_csv_reader = csv.reader(self.abet_file)
-                self.colnames_found = False
-                self.colnames = list()
-                self.abet_raw_data = list()
+                abet_file = open(self.abet_file_path)
+                abet_csv_reader = csv.reader(abet_file)
+                colnames_found = False
+                colnames = list()
+                abet_raw_data = list()
 
-                for row in self.abet_csv_reader:
-                    if self.colnames_found == False:
+                for row in abet_csv_reader:
+                    if colnames_found == False:
                         if len(row) == 0:
                             continue
 
                         if row[0] == 'Evnt_Time':
-                            self.colnames_found = True
-                            self.colnames = row
+                            colnames_found = True
+                            colnames = row
                             continue
                         else:
                             continue
                     else:
-                        self.abet_raw_data.append(row)
+                        abet_raw_data.append(row)
 
                 self.abet_pd = pd.DataFrame(self.abet_raw_data,columns=self.colnames)
 
-                if output_data in self.processed_list:
+                if output_data in processed_list:
                     with pd.ExcelWriter(self.end_path) as writer:
                         self.doric_pd.to_excel(writer, sheet_name='Photometry Data',index=False)
                         self.abet_pd.to_excel(writer, sheet_name='ABET Trial Data',index=False)
-                elif output_data in self.partial_list:
+                elif output_data in partial_list:
                     with pd.ExcelWriter(self.end_path) as writer:
                         self.partial_dataframe.to_excel(writer, sheet_name='Photometry Data',index=False)
                         self.abet_pd.to_excel(writer, sheet_name='ABET Trial Data',index=False)
-                elif output_data in self.final_list:
+                elif output_data in final_list:
                     with pd.ExcelWriter(self.end_path) as writer:
                         self.final_dataframe.to_excel(writer, sheet_name='Photometry Data',index=False)
                         self.abet_pd.to_excel(writer, sheet_name='ABET Trial Data',index=False)
 
                 return
 
-        self.current_time = datetime.now()
-        self.current_time_string = self.current_time.strftime('%d-%m-%Y %H-%M-%S')
+        current_time = datetime.now()
+        current_time_string = current_time.strftime('%d-%m-%Y %H-%M-%S')
 
-        self.file_path_string = self.main_folder_path + self.folder_symbol + 'Output' + self.folder_symbol +  output_data + self.current_time_string + '.csv'
+        file_path_string = self.main_folder_path + self.folder_symbol + 'Output' + self.folder_symbol +  output_data + self.current_time_string + '.csv'
 
-        if output_data in self.processed_list:
+        if output_data in processed_list:
             self.doric_pd.to_csv(self.file_path_string,index=False)
-        elif output_data in self.partial_list:
+        elif output_data in partial_list:
             self.partial_dataframe.to_csv(self.file_path_string,index=False)
-        elif output_data in self.final_list:
+        elif output_data in final_list:
             self.final_dataframe.to_csv(self.file_path_string,index=False)
 
 class Photometry_GUI:
@@ -489,11 +466,15 @@ class Photometry_GUI:
         self.abet_trial_start_var = ''
         self.abet_trial_end_var = ''
         self.abet_trial_iti_var = ''
-        self.channel_control_var = ''
-        self.channel_active_var = ''
-        self.channel_ttl_var = ''
+        self.channel_control_var = 0
+        self.channel_active_var = 0
+        self.channel_ttl_var = 0
         self.low_pass_var = ''
         self.iti_normalize = 0
+
+        self.doric_name_list = ['']
+        self.abet_event_types = ['']
+        self.abet_event_type_pos = 0
 
         self.title = tk.Label(self.root,text='Photometry Analyzer')
         self.title.grid(row=0,column=1)
@@ -548,11 +529,60 @@ class Photometry_GUI:
         self.doric_field.delete(0,END)
         self.doric_field.insert(END,str(self.doric_file_path))
 
+        try:
+            doric_file = open(self.doric_file_path)
+            doric_csv_reader = csv.reader(doric_file)
+            first_row_read = False
+            second_row_read = False
+            self.doric_name_list = list()
+            for row in doric_csv_reader:
+                if first_row_read == False:
+                    first_row_read = True
+                    continue
+                if second_row_read == False and first_row_read == True:
+                    self.doric_name_list = row
+                    break
+            doric_file.close()
+            self.channel_control_var = 1
+            self.channel_active_var = 1
+            self.channel_ttl_var = 1
+        except:
+            self.doric_name_list = ['']
+            self.channel_control_var = 0
+            self.channel_active_var = 0
+            self.channel_ttl_var = 0
+
     def abet_file_load(self):
         self.abet_file_path = filedialog.askopenfilename(title='Select ABETII File', filetypes=(('csv files','*.csv'),('all files','*.')))
         self.abet_field.delete(0,END)
         self.abet_field.insert(END,str(self.abet_file_path))
-
+        try:
+            abet_file = open(self.abet_file_path)
+            abet_csv_reader = csv.reader(abet_file)
+            abet_data_list = list()
+            abet_name_list = list()
+            colnames_found = False
+            for row in abet_csv_reader:
+                if colnames_found == False:
+                    if len(row) == 0:
+                        continue
+                    if row[0] == 'Evnt_Time':
+                        colnames_found = True
+                        abet_name_list = row
+                    else:
+                        continue
+                else:
+                    abet_data_list.append(row)
+            abet_file.close()
+            abet_numpy = np.array(abet_data_list)
+            self.abet_pandas = pd.DataFrame(data=abet_numpy,columns=abet_name_list)
+            self.abet_event_types = self.abet_pandas.loc[:,'Evnt_Name']
+            self.abet_event_types = self.abet_event_types.unique()
+            self.abet_event_types = list(self.abet_event_types)
+            print(self.abet_event_types)
+        except:
+            self.abet_event_types = ['']
+            print('Fail')
     def anymaze_file_load(self):
         self.anymaze_file_path = filedialog.askopenfilename(title='Select Anymaze File', filetypes=(('csv files','*.csv'),('all files','*.')))
         self.anymaze_field.delete(0,END)
@@ -574,9 +604,10 @@ class Photometry_GUI:
         
         self.event_id_type_label = tk.Label(self.abet_event_gui,text='EVENT ID #')
         self.event_id_type_label.grid(row=1,column=0)
-        self.event_id_type_entry = tk.Entry(self.abet_event_gui)
+        #self.event_id_type_entry = tk.Entry(self.abet_event_gui)
+        self.event_id_type_entry = ttk.Combobox(self.abet_event_gui,values=self.abet_event_types)
         self.event_id_type_entry.grid(row=2,column=0)
-        self.event_id_type_entry.insert(END,self.event_id_var)
+        #self.event_id_type_entry.insert(END,self.event_id_var)
 
         self.event_group_label = tk.Label(self.abet_event_gui,text='Event Group #')
         self.event_group_label.grid(row=1,column=1)
@@ -652,28 +683,33 @@ class Photometry_GUI:
 
     def settings_menu(self):
         self.settings_gui = tk.Toplevel()
-        
+
 
         self.settings_title = tk.Label(self.settings_gui,text='Settings')
         self.settings_title.grid(row=0,column=1)
 
         self.channel_control_label = tk.Label(self.settings_gui,text='Control Channel Column Number: ')
         self.channel_control_label.grid(row=1,column=0)
-        self.channel_control_entry = tk.Entry(self.settings_gui)
+        self.channel_control_entry = ttk.Combobox(self.settings_gui,values=self.doric_name_list)
+        #self.channel_control_entry = tk.Entry(self.settings_gui)
         self.channel_control_entry.grid(row=1,column=2)
-        self.channel_control_entry.insert(END,self.channel_control_var)
+        self.channel_control_entry.current(self.channel_control_var)
 
         self.channel_active_label = tk.Label(self.settings_gui,text='Active Channel Column Number: ')
         self.channel_active_label.grid(row=2,column=0)
-        self.channel_active_entry = tk.Entry(self.settings_gui)
+        self.channel_active_entry = ttk.Combobox(self.settings_gui,values=self.doric_name_list)
+        #self.channel_active_entry = tk.Entry(self.settings_gui)
         self.channel_active_entry.grid(row=2,column=2)
-        self.channel_active_entry.insert(END,self.channel_active_var)
+        #self.channel_active_entry.insert(END,self.channel_active_var)
+        self.channel_active_entry.current(self.channel_active_var)
 
         self.channel_ttl_label = tk.Label(self.settings_gui,text='TTL Channel Column Number: ')
         self.channel_ttl_label.grid(row=3,column=0)
-        self.channel_ttl_entry = tk.Entry(self.settings_gui)
+        self.channel_ttl_entry = ttk.Combobox(self.settings_gui,values=self.doric_name_list)
+        #self.channel_ttl_entry = tk.Entry(self.settings_gui)
         self.channel_ttl_entry.grid(row=3,column=2)
-        self.channel_ttl_entry.insert(END,self.channel_ttl_var)
+        #self.channel_ttl_entry.insert(END,self.channel_ttl_var)
+        self.channel_ttl_entry.current(self.channel_ttl_var)
 
         self.low_pass_freq_label = tk.Label(self.settings_gui,text='Low Pass Filter Frequency (hz): ')
         self.low_pass_freq_label.grid(row=4,column=0)
