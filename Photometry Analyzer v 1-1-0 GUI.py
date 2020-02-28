@@ -475,6 +475,11 @@ class Photometry_GUI:
         self.doric_name_list = ['']
         self.abet_event_types = ['']
         self.abet_event_type_pos = 0
+        self.abet_group_name = ['']
+        self.abet_group_name_pos = 0
+        self.abet_group_numbers = ['']
+        self.abet_group_numbers_pos = 0
+        self.abet_trial_stages = ['']
 
         self.title = tk.Label(self.root,text='Photometry Analyzer')
         self.title.grid(row=0,column=1)
@@ -579,21 +584,48 @@ class Photometry_GUI:
             self.abet_event_types = self.abet_pandas.loc[:,'Evnt_Name']
             self.abet_event_types = self.abet_event_types.unique()
             self.abet_event_types = list(self.abet_event_types)
-            print(self.abet_event_types)
+            self.abet_group_numbers = self.abet_pandas.loc[:,'Group_ID']
+            self.abet_group_numbers = self.abet_group_numbers.unique()
+            self.abet_group_numbers = list(self.abet_group_numbers)
+            self.abet_group_name = ['']
+            self.abet_trial_stages = self.abet_pandas.loc[(self.abet_pandas['Evnt_Name'] == 'Condition Event'),'Item_Name']
+            self.abet_trial_stages = self.abet_trial_stages.unique()
+            self.abet_trial_stages = list(self.abet_trial_stages)
         except:
             self.abet_event_types = ['']
-            print('Fail')
+            self.abet_group_name = ['']
+            self.abet_group_numbers = ['']
+            self.abet_trial_stages = ['']
     def anymaze_file_load(self):
         self.anymaze_file_path = filedialog.askopenfilename(title='Select Anymaze File', filetypes=(('csv files','*.csv'),('all files','*.')))
         self.anymaze_field.delete(0,END)
         
         self.anymaze_field.insert(END,str(self.anymaze_file_path))
 
+    def abet_event_name_check(self,event):
+        self.abet_group_name = self.abet_pandas.loc[self.abet_pandas['Evnt_Name'] == str(self.event_id_type_entry.get()),'Item_Name']
+        self.abet_group_name = self.abet_group_name.unique()
+        self.abet_group_name = list(self.abet_group_name)
+        self.event_name_entry['values'] = self.abet_group_name
+        try:
+            self.abet_group_numbers = self.abet_pandas.loc[self.abet_pandas['Evnt_Name'] == str(self.event_id_type_entry.get()),'Group_ID']
+            self.abet_group_numbers = self.abet_group_numbers.unique()
+            self.abet_group_numbers = list(self.abet_group_numbers)
+            self.event_group_entry['values'] = self.abet_group_numbers
+        except:
+            self.abet_group_numbers = self.abet_pandas.loc[:,'Group_ID']
+            self.abet_group_numbers = self.abet_group_numbers.unique()
+            self.abet_group_numbers = list(self.abet_group_numbers)
+            self.event_group_entry['values'] = self.abet_group_numbers
+    def abet_item_name_check(self,event):
+        self.abet_group_numbers = self.abet_pandas.loc[(self.abet_pandas['Evnt_Name'] == str(self.event_id_type_entry.get())) & 
+                                                       (self.abet_pandas['Item_Name'] == str(self.event_name_entry.get())),'Group_ID']
+        self.abet_group_numbers = self.abet_group_numbers.unique()
+        self.abet_group_numbers = list(self.abet_group_numbers)
+        self.event_group_entry['values'] = self.abet_group_numbers
+        
     def abet_event_definition_gui(self):
         
-        
-        
-
         self.iti_zscoring = tk.IntVar()
         self.iti_zscoring.set(self.iti_normalize)
         
@@ -607,25 +639,29 @@ class Photometry_GUI:
         #self.event_id_type_entry = tk.Entry(self.abet_event_gui)
         self.event_id_type_entry = ttk.Combobox(self.abet_event_gui,values=self.abet_event_types)
         self.event_id_type_entry.grid(row=2,column=0)
+        self.event_id_type_entry.bind("<<ComboboxSelected>>", self.abet_event_name_check)
         #self.event_id_type_entry.insert(END,self.event_id_var)
+        
+        self.event_name_label = tk.Label(self.abet_event_gui,text='Name of Event')
+        self.event_name_label.grid(row=1,column=1)
+        #self.event_name_entry = tk.Entry(self.abet_event_gui)
+        self.event_name_entry = ttk.Combobox(self.abet_event_gui,values=self.abet_group_name)
+        self.event_name_entry.grid(row=2,column=1)
+        self.event_name_entry.bind("<<ComboboxSelected>>", self.abet_item_name_check)
+        #self.event_name_entry.insert(END,self.event_name_var)
 
         self.event_group_label = tk.Label(self.abet_event_gui,text='Event Group #')
-        self.event_group_label.grid(row=1,column=1)
-        self.event_group_entry = tk.Entry(self.abet_event_gui)
-        self.event_group_entry.grid(row=2,column=1)
-        self.event_group_entry.insert(END,self.event_group_var)
+        self.event_group_label.grid(row=1,column=2)
+        #self.event_group_entry = tk.Entry(self.abet_event_gui)
+        self.event_group_entry = ttk.Combobox(self.abet_event_gui,values=self.abet_group_numbers)
+        self.event_group_entry.grid(row=2,column=2)
+        #self.event_group_entry.insert(END,self.event_group_var)
 
         self.event_position_label = tk.Label(self.abet_event_gui,text='Event Position #')
-        self.event_position_label.grid(row=1,column=2)
+        self.event_position_label.grid(row=3,column=0)
         self.event_position_entry = tk.Entry(self.abet_event_gui)
-        self.event_position_entry.grid(row=2,column=2)
+        self.event_position_entry.grid(row=4,column=0)
         self.event_position_entry.insert(END,self.event_position_var)
-
-        self.event_name_label = tk.Label(self.abet_event_gui,text='Name of Event')
-        self.event_name_label.grid(row=3,column=0)
-        self.event_name_entry = tk.Entry(self.abet_event_gui)
-        self.event_name_entry.grid(row=4,column=0)
-        self.event_name_entry.insert(END,self.event_name_var)
 
 
         self.event_prior_time = tk.Label(self.abet_event_gui,text='Time Prior to Event (sec)')
