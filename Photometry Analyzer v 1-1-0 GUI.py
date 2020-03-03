@@ -514,6 +514,7 @@ class Photometry_GUI:
         self.abet_iti_group_name = ['']
         self.touch_event_names = ['Touch Up Event','Touch Down Event','Whisker - Clear Image by Position']
         self.position_numbers = ['']
+        self.position_state = 'disabled'
         
         self.curr_dir = os.getcwd()
         self.config_path = self.curr_dir + self.folder_symbol + 'Photometry.cfg'
@@ -540,18 +541,18 @@ class Photometry_GUI:
         
         self.doric_file_path = self.configurations_list2[0]
         self.abet_file_path = self.configurations_list2[1]
-        self.event_id_index = int(self.configurations_list2[2])
-        self.event_name_index = int(self.configurations_list2[3])
-        self.event_group_index = int(self.configurations_list2[4])
-        self.event_position_index = int(self.configurations_list2[5])
+        self.event_id_var = int(self.configurations_list2[2])
+        self.event_name_var = str(self.configurations_list2[3])
+        self.event_group_var = str(self.configurations_list2[4])
+        self.event_position_var = str(self.configurations_list2[5])
         self.event_prior_var = str(self.configurations_list2[6])
         self.event_follow_var = str(self.configurations_list2[7])
-        self.abet_trial_start_index = int(self.configurations_list2[8])
-        self.abet_trial_end_index = int(self.configurations_list2[9])
+        self.abet_trial_start_var = int(self.configurations_list2[8])
+        self.abet_trial_end_var = int(self.configurations_list2[9])
         self.abet_trial_iti_var = str(self.configurations_list2[10])
-        self.channel_control_index = int(self.configurations_list2[11])
-        self.channel_active_index = int(self.configurations_list2[12])
-        self.channel_ttl_index = int(self.configurations_list2[13])
+        self.channel_control_var = int(self.configurations_list2[11])
+        self.channel_active_var = int(self.configurations_list2[12])
+        self.channel_ttl_var = int(self.configurations_list2[13])
         self.low_pass_var = str(self.configurations_list2[14])
         self.centered_z_var.set(int(self.configurations_list2[15]))
 
@@ -604,16 +605,18 @@ class Photometry_GUI:
         
         if self.doric_file_path != '':
             self.doric_file_load(path=self.doric_file_path)
+            self.doric_setting_load()
         if self.abet_file_path != '':
             self.abet_file_load(path=self.abet_file_path)
+            self.abet_setting_load()
         
         self.root.protocol("WM_DELETE_WINDOW", self.close_program)
         self.root.mainloop()
         
     def close_program(self):
-        config_list = [self.doric_file_path,self.abet_file_path,self.event_id_index,self.event_name_index,self.event_group_index,
-                            self.event_position_index,self.event_prior_var,self.event_follow_var,self.abet_trial_start_index,self.abet_trial_end_index,
-                            self.abet_trial_iti_var,self.channel_control_index,self.channel_active_index,self.channel_ttl_index,
+        config_list = [self.doric_file_path,self.abet_file_path,self.event_id_var,self.event_name_var,self.event_group_var,
+                            self.event_position_var,self.event_prior_var,self.event_follow_var,self.abet_trial_start_var,self.abet_trial_end_var,
+                            self.abet_trial_iti_var,self.channel_control_var,self.channel_active_var,self.channel_ttl_var,
                             self.low_pass_var,self.centered_z_var.get()]
         config_index = 0
         configurations_list3 = list()
@@ -622,7 +625,7 @@ class Photometry_GUI:
                 configurations_list3.append(line)
                 continue
             index_pos = line.index('=') + 2
-            new_line = line[0:index_pos] + config_list[config_index] + '\n'
+            new_line = line[0:index_pos] + str(config_list[config_index]) + '\n'
             configurations_list3.append(new_line)
             config_index += 1
         self.config_file = open(self.config_path,'wt')
@@ -631,6 +634,59 @@ class Photometry_GUI:
         self.config_file.close()
         self.root.destroy()
             
+    def abet_setting_load(self):
+        if self.event_id_var in self.abet_event_types:
+            self.event_id_index = self.abet_event_types.index(self.event_id_var)
+            self.abet_group_name = self.abet_pandas.loc[self.abet_pandas['Evnt_Name'] == self.event_id_var,'Item_Name']
+            self.abet_group_name = self.abet_group_name.unique()
+            self.abet_group_name = list(self.abet_group_name)
+            self.abet_group_name = sorted(self.abet_group_name)
+            if self.event_name_var in self.abet_group_name:
+                self.event_name_index = self.abet_group_name.index(self.event_name_var)
+                self.abet_group_numbers = self.abet_pandas.loc[(self.abet_pandas['Evnt_Name'] == self.event_id_var) & 
+                                                               (self.abet_pandas['Item_Name'] == self.event_name_var),'Group_ID']
+                self.abet_group_numbers = self.abet_group_numbers.unique()
+                self.abet_group_numbers = list(self.abet_group_numbers)
+                self.abet_group_numbers = sorted(self.abet_group_numbers)
+                if self.event_group_var in self.abet_group_numbers:
+                    self.event_group_index = self.abet_group_numbers.index(self.event_group_var)
+                else:
+                    self.event_group_index = 0
+            else:
+                self.event_name_index = 0
+                self.abet_group_numbers = self.abet_pandas.loc[:,'Group_ID']
+                self.abet_group_numbers = self.abet_group_numbers.unique()
+                self.abet_group_numbers = list(self.abet_group_numbers)
+                self.abet_group_numbers = sorted(self.abet_group_numbers)
+        else:
+            self.event_id_index = 0
+            self.abet_group_name = self.abet_pandas.loc[:,'Item_Name']
+            self.abet_group_name = self.abet_group_name.unique()
+            self.abet_group_name = list(self.abet_group_name)
+            self.abet_group_name = sorted(self.abet_group_name)
+            
+        
+        if self.event_id_var in self.touch_event_names:
+            self.position_state = 'normal'
+        else:
+            self.position_state = 'disabled'
+
+    def doric_setting_load(self):
+        if self.channel_control_var in self.doric_name_list:
+            self.channel_control_index = self.doric_name_list.index(self.channel_control_var)
+        else:
+            self.channel_control_index = 0
+                
+        if self.channel_active_var in self.doric_name_list:
+            self.channel_active_index = self.doric_name_list.index(self.channel_active_var)
+        else:
+            self.channel_active_index = 0
+                
+        if self.channel_ttl_var in self.doric_name_list:
+            self.channel_ttl_index = self.doric_name_list.index(self.channel_ttl_var)
+        else:
+            self.channel_ttl_index = 0
+        
 
     def doric_file_load(self,path=''):
         if path == '':
