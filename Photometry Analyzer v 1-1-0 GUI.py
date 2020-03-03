@@ -526,7 +526,7 @@ class Photometry_GUI:
         for item in self.configurations_list:
             if '#' in item:
                 continue
-            item.replace('\n','')
+            item = item.replace('\n','')
             #item.replace(' ','')
             index_string = item.index('=')
             if index_string >= (len(item) - 1):
@@ -535,29 +535,29 @@ class Photometry_GUI:
                 else:
                     item = 0
             else:
-                item = item[(index_string + 2):len(item)]
+                item2 = item[(index_string + 2):len(item)]
                 
-            self.configurations_list2.append(item)
+            self.configurations_list2.append(item2)
         
         self.doric_file_path = self.configurations_list2[0]
         self.abet_file_path = self.configurations_list2[1]
-        self.event_id_var = int(self.configurations_list2[2])
+        self.event_id_var = str(self.configurations_list2[2])
         self.event_name_var = str(self.configurations_list2[3])
         self.event_group_var = str(self.configurations_list2[4])
         self.event_position_var = str(self.configurations_list2[5])
         self.event_prior_var = str(self.configurations_list2[6])
         self.event_follow_var = str(self.configurations_list2[7])
-        self.abet_trial_start_var = int(self.configurations_list2[8])
-        self.abet_trial_end_var = int(self.configurations_list2[9])
+        self.abet_trial_start_var = str(self.configurations_list2[8])
+        self.abet_trial_end_var = str(self.configurations_list2[9])
         self.abet_trial_iti_var = str(self.configurations_list2[10])
-        self.channel_control_var = int(self.configurations_list2[11])
-        self.channel_active_var = int(self.configurations_list2[12])
-        self.channel_ttl_var = int(self.configurations_list2[13])
+        self.channel_control_var = str(self.configurations_list2[11])
+        self.channel_active_var = str(self.configurations_list2[12])
+        self.channel_ttl_var = str(self.configurations_list2[13])
         self.low_pass_var = str(self.configurations_list2[14])
         self.centered_z_var.set(int(self.configurations_list2[15]))
-
         self.title = tk.Label(self.root,text='Photometry Analyzer')
         self.title.grid(row=0,column=1)
+        print(self.configurations_list2)
 
         self.doric_label = tk.Label(self.root,text='Doric Filepath:')
         self.doric_label.grid(row=1,column=0)
@@ -605,10 +605,8 @@ class Photometry_GUI:
         
         if self.doric_file_path != '':
             self.doric_file_load(path=self.doric_file_path)
-            self.doric_setting_load()
         if self.abet_file_path != '':
             self.abet_file_load(path=self.abet_file_path)
-            self.abet_setting_load()
         
         self.root.protocol("WM_DELETE_WINDOW", self.close_program)
         self.root.mainloop()
@@ -650,6 +648,17 @@ class Photometry_GUI:
                 self.abet_group_numbers = sorted(self.abet_group_numbers)
                 if self.event_group_var in self.abet_group_numbers:
                     self.event_group_index = self.abet_group_numbers.index(self.event_group_var)
+                    if self.event_id_var in self.touch_event_names:
+                        self.position_numbers = self.abet_pandas.loc[(self.abet_pandas['Evnt_Name'] == self.event_id_var) & 
+                                                                     (self.abet_pandas['Item_Name'] == self.event_name_var) & 
+                                                                     (self.abet_pandas['Group_ID'] == self.event_group_var),'Arg1_Value']
+                        self.position_numbers = self.position_numbers.unique()
+                        self.position_numbers = list(self.position_numbers)
+                        self.position_numbers = sorted(self.position_numbers)
+                        if self.event_position_var in self.position_numbers:
+                            self.event_position_index = self.position_numbers.index(self.event_position_var)
+                        else:
+                            self.event_position_index = 0
                 else:
                     self.event_group_index = 0
             else:
@@ -693,6 +702,11 @@ class Photometry_GUI:
             self.doric_file_path = filedialog.askopenfilename(title='Select Doric File', filetypes=(('csv files','*.csv'),('all files','*.')))
         else:
             self.doric_file_path = path
+            if os.path.isfile(path) != True:
+                self.doric_file_path = ''
+                self.doric_field.delete(0,END)
+                self.doric_field.insert(END,str(self.doric_file_path))
+                return
         self.doric_field.delete(0,END)
         self.doric_field.insert(END,str(self.doric_file_path))
 
@@ -735,12 +749,20 @@ class Photometry_GUI:
             self.channel_control_var = 0
             self.channel_active_var = 0
             self.channel_ttl_var = 0
+            
+        if path != '':
+            self.doric_setting_load()
 
     def abet_file_load(self,path=''):
         if path == '':
             self.abet_file_path = filedialog.askopenfilename(title='Select ABETII File', filetypes=(('csv files','*.csv'),('all files','*.')))
         else:
             self.abet_file_path = path
+            if os.path.isfile(path) != True:
+                self.abet_file_path = ''
+                self.abet_field.delete(0,END)
+                self.abet_field.insert(END,str(self.abet_file_path))
+                return
         self.abet_field.delete(0,END)
         self.abet_field.insert(END,str(self.abet_file_path))
         try:
@@ -826,6 +848,9 @@ class Photometry_GUI:
             self.abet_group_numbers = ['']
             self.abet_trial_stages = ['']
             self.abet_iti_group_name = ['']
+            
+        if path != '':
+            self.abet_setting_load()
     def anymaze_file_load(self):
         self.anymaze_file_path = filedialog.askopenfilename(title='Select Anymaze File', filetypes=(('csv files','*.csv'),('all files','*.')))
         self.anymaze_field.delete(0,END)
