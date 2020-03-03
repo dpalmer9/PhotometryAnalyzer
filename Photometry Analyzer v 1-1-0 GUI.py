@@ -300,7 +300,7 @@ class Photometry_Data:
                     deltaf_split = trial_deltaf.loc[:, 'DeltaF']
                     z_mean = deltaf_split.mean()
                     z_sd = deltaf_split.std()
-                trial_deltaf['zscore'] = (trial_deltaf['DeltaF'] - z_mean) / z_sd
+                trial_deltaf.loc[:,'zscore'] = (trial_deltaf.loc[:,'DeltaF'] - z_mean) / z_sd
 
                 colname_1 = 'Time Trial ' + str(trial_num)
                 colname_2 = 'Z-Score Trial ' + str(trial_num)
@@ -355,7 +355,7 @@ class Photometry_Data:
                     if normalize_side in left_selection_list:
                         trial_start_index = self.trial_definition_times['Start_Time'].sub(self.abet_time_list.loc[index,'Start_Time']).abs().idxmin()
                         trial_start_window = self.trial_definition_times.iloc[trial_start_index,0]
-                        trial_iti_window = trial_start_window - trial_iti_pad
+                        trial_iti_window = trial_start_window - float(trial_iti_pad)
                         iti_data = self.doric_pd.loc[(self.doric_pd['Time'] >= trial_iti_window) & (self.doric_pd['Time'] <= trial_start_window),'DeltaF']
                     elif normalize_side in right_selection_list:
                         trial_end_index = self.trial_definition_times['End_Time'].sub(self.abet_time_list.loc[index,'End_Time']).abs().idxmin()
@@ -452,14 +452,14 @@ class Photometry_Data:
         current_time = datetime.now()
         current_time_string = current_time.strftime('%d-%m-%Y %H-%M-%S')
 
-        file_path_string = self.main_folder_path + self.folder_symbol + 'Output' + self.folder_symbol +  output_data + self.current_time_string + '.csv'
+        file_path_string = self.main_folder_path + self.folder_symbol + 'Output' + self.folder_symbol +  output_data + current_time_string + '.csv'
 
         if output_data in processed_list:
-            self.doric_pd.to_csv(self.file_path_string,index=False)
+            self.doric_pd.to_csv(file_path_string,index=False)
         elif output_data in partial_list:
-            self.partial_dataframe.to_csv(self.file_path_string,index=False)
+            self.partial_dataframe.to_csv(file_path_string,index=False)
         elif output_data in final_list:
-            self.final_dataframe.to_csv(self.file_path_string,index=False)
+            self.final_dataframe.to_csv(file_path_string,index=False)
 
 class Photometry_GUI:
     def __init__(self):
@@ -559,7 +559,6 @@ class Photometry_GUI:
         self.centered_z_var.set(int(self.configurations_list2[15]))
         self.title = tk.Label(self.root,text='Photometry Analyzer')
         self.title.grid(row=0,column=1)
-        print(self.configurations_list2)
 
         self.doric_label = tk.Label(self.root,text='Doric Filepath:')
         self.doric_label.grid(row=1,column=0)
@@ -1131,9 +1130,11 @@ class Photometry_GUI:
             
             
             if self.centered_z_var.get() == 0:
-                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=False,trial_definition = True)     
+                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=False,trial_definition = True,
+                                                       trial_iti_pad=self.abet_trial_iti_var)     
             elif self.centered_z_var.get() == 1:
-                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=True, trial_definition = True)
+                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=True, trial_definition = True,
+                                                       trial_iti_pad=self.abet_trial_iti_var)
 
 
             if self.simple_var.get() == 1:
