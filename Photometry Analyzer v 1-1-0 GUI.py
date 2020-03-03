@@ -868,6 +868,7 @@ class Photometry_GUI:
             self.event_position_entry.config(state='normal')
         else:
             self.event_position_entry.config(state='disabled')
+            self.event_position_index = 0
         try:
             self.abet_group_numbers = self.abet_pandas.loc[self.abet_pandas['Evnt_Name'] == str(self.event_id_type_entry.get()),'Group_ID']
             self.abet_group_numbers = self.abet_group_numbers.unique()
@@ -898,6 +899,7 @@ class Photometry_GUI:
             self.position_numbers = sorted(self.position_numbers)
             self.event_position_entry['values'] = self.position_numbers
         else:
+            self.event_position_index = 0
             return
         
     def abet_event_definition_gui(self):
