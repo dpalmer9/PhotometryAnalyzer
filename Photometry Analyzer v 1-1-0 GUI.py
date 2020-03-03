@@ -118,8 +118,10 @@ class Photometry_Data:
         trial_times = trial_times.reset_index(drop=True)
         start_times = trial_times.iloc[::2]
         start_times = start_times.reset_index(drop=True)
+        start_times = pd.to_numeric(start_times,errors='coerce')
         end_times = trial_times.iloc[1::2]
         end_times = end_times.reset_index(drop=True)
+        end_times = pd.to_numeric(end_times,errors='coerce')
         self.trial_definition_times = pd.concat([start_times,end_times],axis=1)
         self.trial_definition_times.columns = ['Start_Time','End_Time']
         self.trial_definition_times = self.trial_definition_times.reset_index(drop=True)
@@ -350,12 +352,12 @@ class Photometry_Data:
 
                 trial_deltaf = self.doric_pd.iloc[start_index:end_index]
                 if whole_trial_normalize == False:
-                    if normalize_side in self.left_selection_list:
+                    if normalize_side in left_selection_list:
                         trial_start_index = self.trial_definition_times['Start_Time'].sub(self.abet_time_list.loc[index,'Start_Time']).abs().idxmin()
                         trial_start_window = self.trial_definition_times.iloc[trial_start_index,0]
                         trial_iti_window = trial_start_window - trial_iti_pad
-                        iti_data = self.doric_pd.loc[(self.doric_pd[''] >= trial_iti_window) & (self.doric_pd[''] <= trial_start_window),'DeltaF']
-                    elif normalize_side in self.right_selection_list:
+                        iti_data = self.doric_pd.loc[(self.doric_pd['Time'] >= trial_iti_window) & (self.doric_pd['Time'] <= trial_start_window),'DeltaF']
+                    elif normalize_side in right_selection_list:
                         trial_end_index = self.trial_definition_times['End_Time'].sub(self.abet_time_list.loc[index,'End_Time']).abs().idxmin()
                         trial_end_window = self.trial_definition_times.iloc[trial_end_index,0]
                         trial_iti_window = trial_end_window + trial_iti_pad
@@ -1129,7 +1131,7 @@ class Photometry_GUI:
             
             
             if self.centered_z_var.get() == 0:
-                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=False)     
+                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=False,trial_definition = True)     
             elif self.centered_z_var.get() == 1:
                 self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=True, trial_definition = True)
 
