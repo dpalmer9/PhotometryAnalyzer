@@ -66,6 +66,7 @@ class Photometry_Data:
                 if row[0] in event_time_colname:
                     colnames_found = True
                     self.time_var_name = row[0]
+                    self.event_name_col = row[2]
                     abet_name_list = [row[0],row[1],row[2],row[3],row[5],row[8]]
                 else:
                     continue
@@ -133,11 +134,11 @@ class Photometry_Data:
                           extra_prior_time=0,extra_follow_time=0):
         touch_event_names = ['Touch Up Event','Touch Down Event','Whisker - Clear Image by Position']
         if start_event_id in touch_event_names:
-            filtered_abet = self.abet_pandas.loc[(self.abet_pandas['Evnt_Name'] == str(start_event_id)) & (self.abet_pandas['Group_ID'] == str(start_event_group)) & 
+            filtered_abet = self.abet_pandas.loc[(self.abet_pandas[self.event_name_col] == str(start_event_id)) & (self.abet_pandas['Group_ID'] == str(start_event_group)) & 
                                                  (self.abet_pandas['Item_Name'] == str(start_event_item_name)) & (self.abet_pandas['Arg1_Value'] == str(start_event_position)),:] 
     
         else:
-            filtered_abet = self.abet_pandas.loc[(self.abet_pandas['Evnt_Name'] == str(start_event_id)) & (self.abet_pandas['Group_ID'] == str(start_event_group)) &
+            filtered_abet = self.abet_pandas.loc[(self.abet_pandas[self.event_name_col] == str(start_event_id)) & (self.abet_pandas['Group_ID'] == str(start_event_group)) &
                                                 (self.abet_pandas['Item_Name'] == str(start_event_item_name)),:]
             
         self.abet_event_times = filtered_abet.loc[:,self.time_var_name]
@@ -354,7 +355,7 @@ class Photometry_Data:
                 trial_deltaf = self.doric_pd.iloc[start_index:end_index]
                 if whole_trial_normalize == False:
                     if normalize_side in left_selection_list:
-                        trial_start_index = self.trial_definition_times['Start_Time'].sub(self.abet_time_list.loc[index,'Start_Time']).abs().idxmin()
+                        trial_start_index = self.trial_definition_times.loc[:,'Start_Time'].sub(self.abet_time_list.loc[index,'Start_Time']).abs().idxmin()
                         trial_start_window = self.trial_definition_times.iloc[trial_start_index,0]
                         trial_iti_window = trial_start_window - float(trial_iti_pad)
                         iti_data = self.doric_pd.loc[(self.doric_pd['Time'] >= trial_iti_window) & (self.doric_pd['Time'] <= trial_start_window),'DeltaF']
@@ -519,6 +520,7 @@ class Photometry_GUI:
         self.position_numbers = ['']
         self.position_state = 'disabled'
         self.event_time_colname = ['Evnt_Time','Event_Time']
+        self.event_name_colname = ['Event_Name','Evnt_Name']
         
         self.curr_dir = os.getcwd()
         self.config_path = self.curr_dir + self.folder_symbol + 'Photometry.cfg'
@@ -638,13 +640,13 @@ class Photometry_GUI:
     def abet_setting_load(self):
         if self.event_id_var in self.abet_event_types:
             self.event_id_index = self.abet_event_types.index(self.event_id_var)
-            self.abet_group_name = self.abet_pandas.loc[self.abet_pandas['Evnt_Name'] == self.event_id_var,'Item_Name']
+            self.abet_group_name = self.abet_pandas.loc[self.abet_pandas[self.abet_event_name_col] == self.event_id_var,'Item_Name']
             self.abet_group_name = self.abet_group_name.unique()
             self.abet_group_name = list(self.abet_group_name)
             self.abet_group_name = sorted(self.abet_group_name)
             if self.event_name_var in self.abet_group_name:
                 self.event_name_index = self.abet_group_name.index(self.event_name_var)
-                self.abet_group_numbers = self.abet_pandas.loc[(self.abet_pandas['Evnt_Name'] == self.event_id_var) & 
+                self.abet_group_numbers = self.abet_pandas.loc[(self.abet_pandas[self.abet_event_name_col] == self.event_id_var) & 
                                                                (self.abet_pandas['Item_Name'] == self.event_name_var),'Group_ID']
                 self.abet_group_numbers = self.abet_group_numbers.unique()
                 self.abet_group_numbers = list(self.abet_group_numbers)
@@ -652,7 +654,7 @@ class Photometry_GUI:
                 if self.event_group_var in self.abet_group_numbers:
                     self.event_group_index = self.abet_group_numbers.index(self.event_group_var)
                     if self.event_id_var in self.touch_event_names:
-                        self.position_numbers = self.abet_pandas.loc[(self.abet_pandas['Evnt_Name'] == self.event_id_var) & 
+                        self.position_numbers = self.abet_pandas.loc[(self.abet_pandas[self.abet_event_name_col] == self.event_id_var) & 
                                                                      (self.abet_pandas['Item_Name'] == self.event_name_var) & 
                                                                      (self.abet_pandas['Group_ID'] == self.event_group_var),'Arg1_Value']
                         self.position_numbers = self.position_numbers.unique()
@@ -781,6 +783,7 @@ class Photometry_GUI:
                     if row[0] in self.event_time_colname:
                         colnames_found = True
                         abet_name_list = row
+                        self.abet_event_name_col = row[2]
                     else:
                         continue
                 else:
@@ -788,7 +791,7 @@ class Photometry_GUI:
             abet_file.close()
             abet_numpy = np.array(abet_data_list)
             self.abet_pandas = pd.DataFrame(data=abet_numpy,columns=abet_name_list)
-            self.abet_event_types = self.abet_pandas.loc[:,'Evnt_Name']
+            self.abet_event_types = self.abet_pandas.loc[:,self.abet_event_name_col]
             self.abet_event_types = self.abet_event_types.unique()
             self.abet_event_types = list(self.abet_event_types)
             self.abet_event_types = sorted(self.abet_event_types)
@@ -825,7 +828,7 @@ class Photometry_GUI:
                 self.event_name_index = 0
                 
             
-            self.abet_iti_group_name = self.abet_pandas.loc[(self.abet_pandas['Evnt_Name'] == 'Condition Event'),'Item_Name']
+            self.abet_iti_group_name = self.abet_pandas.loc[(self.abet_pandas[self.abet_event_name_col] == 'Condition Event'),'Item_Name']
             self.abet_iti_group_name = self.abet_iti_group_name.unique()
             self.abet_iti_group_name = list(self.abet_iti_group_name)
             self.abet_iti_group_name = sorted(self.abet_iti_group_name)
@@ -861,7 +864,7 @@ class Photometry_GUI:
         self.anymaze_field.insert(END,str(self.anymaze_file_path))
 
     def abet_event_name_check(self,event):
-        self.abet_group_name = self.abet_pandas.loc[self.abet_pandas['Evnt_Name'] == str(self.event_id_type_entry.get()),'Item_Name']
+        self.abet_group_name = self.abet_pandas.loc[self.abet_pandas[self.abet_event_name_col] == str(self.event_id_type_entry.get()),'Item_Name']
         self.abet_group_name = self.abet_group_name.unique()
         self.abet_group_name = list(self.abet_group_name)
         self.abet_group_name = sorted(self.abet_group_name)
@@ -872,7 +875,7 @@ class Photometry_GUI:
             self.event_position_entry.config(state='disabled')
             self.event_position_index = 0
         try:
-            self.abet_group_numbers = self.abet_pandas.loc[self.abet_pandas['Evnt_Name'] == str(self.event_id_type_entry.get()),'Group_ID']
+            self.abet_group_numbers = self.abet_pandas.loc[self.abet_pandas[self.abet_event_name_col] == str(self.event_id_type_entry.get()),'Group_ID']
             self.abet_group_numbers = self.abet_group_numbers.unique()
             self.abet_group_numbers = list(self.abet_group_numbers)
             self.abet_group_numbers = sorted(self.abet_group_numbers)
@@ -884,7 +887,7 @@ class Photometry_GUI:
             self.abet_group_numbers = sorted(self.abet_group_numbers)
             self.event_group_entry['values'] = self.abet_group_numbers
     def abet_item_name_check(self,event):
-        self.abet_group_numbers = self.abet_pandas.loc[(self.abet_pandas['Evnt_Name'] == str(self.event_id_type_entry.get())) & 
+        self.abet_group_numbers = self.abet_pandas.loc[(self.abet_pandas[self.abet_event_name_col] == str(self.event_id_type_entry.get())) & 
                                                        (self.abet_pandas['Item_Name'] == str(self.event_name_entry.get())),'Group_ID']
         self.abet_group_numbers = self.abet_group_numbers.unique()
         self.abet_group_numbers = list(self.abet_group_numbers)
@@ -893,7 +896,7 @@ class Photometry_GUI:
         
     def abet_group_number_check(self,event):
         if str(self.event_id_type_entry.get()) in self.touch_event_names:
-            self.position_numbers = self.abet_pandas.loc[(self.abet_pandas['Evnt_Name'] == str(self.event_id_type_entry.get())) & 
+            self.position_numbers = self.abet_pandas.loc[(self.abet_pandas[self.abet_event_name_col] == str(self.event_id_type_entry.get())) & 
                                                          (self.abet_pandas['Item_Name'] == str(self.event_name_entry.get())) & 
                                                          (self.abet_pandas['Group_ID'] == str(self.event_group_entry.get())),'Arg1_Value']
             self.position_numbers = self.position_numbers.unique()
@@ -1134,10 +1137,10 @@ class Photometry_GUI:
             
             
             if self.centered_z_var.get() == 0:
-                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=False,trial_definition = True,
+                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=True,trial_definition = True,
                                                        trial_iti_pad=self.abet_trial_iti_var)     
             elif self.centered_z_var.get() == 1:
-                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=True, trial_definition = True,
+                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=False, trial_definition = True,
                                                        trial_iti_pad=self.abet_trial_iti_var)
 
 
