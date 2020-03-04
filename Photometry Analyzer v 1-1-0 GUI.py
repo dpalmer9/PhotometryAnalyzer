@@ -57,13 +57,15 @@ class Photometry_Data:
         abet_csv_reader = csv.reader(abet_file)
         abet_data_list = list()
         abet_name_list = list()
+        event_time_colname = ['Evnt_Time','Event_Time']
         colnames_found = False
         for row in abet_csv_reader:
             if colnames_found == False:
                 if len(row) == 0:
                     continue
-                if row[0] == 'Evnt_Time':
+                if row[0] in event_time_colname:
                     colnames_found = True
+                    self.time_var_name = row[0]
                     abet_name_list = [row[0],row[1],row[2],row[3],row[5],row[8]]
                 else:
                     continue
@@ -114,7 +116,7 @@ class Photometry_Data:
         if filtered_abet.iloc[0,3] != str(start_event_group):
             print('FAILED')
         
-        trial_times = filtered_abet.Evnt_Time
+        trial_times = filtered_abet.loc[:,self.time_var_name]
         trial_times = trial_times.reset_index(drop=True)
         start_times = trial_times.iloc[::2]
         start_times = start_times.reset_index(drop=True)
@@ -138,8 +140,7 @@ class Photometry_Data:
             filtered_abet = self.abet_pandas.loc[(self.abet_pandas['Evnt_Name'] == str(start_event_id)) & (self.abet_pandas['Group_ID'] == str(start_event_group)) &
                                                 (self.abet_pandas['Item_Name'] == str(start_event_item_name)),:]
             
-        
-        self.abet_event_times = filtered_abet.loc[:,'Evnt_Time']
+        self.abet_event_times = filtered_abet.loc[:,self.time_var_name]
         self.abet_event_times = self.abet_event_times.reset_index(drop=True)
         self.abet_event_times = pd.to_numeric(self.abet_event_times, errors='coerce')
         abet_start_times = self.abet_event_times - extra_prior_time
@@ -517,6 +518,7 @@ class Photometry_GUI:
         self.touch_event_names = ['Touch Up Event','Touch Down Event','Whisker - Clear Image by Position']
         self.position_numbers = ['']
         self.position_state = 'disabled'
+        self.event_time_colname = ['Evnt_Time','Event_Time']
         
         self.curr_dir = os.getcwd()
         self.config_path = self.curr_dir + self.folder_symbol + 'Photometry.cfg'
@@ -776,7 +778,7 @@ class Photometry_GUI:
                 if colnames_found == False:
                     if len(row) == 0:
                         continue
-                    if row[0] == 'Evnt_Time':
+                    if row[0] in self.event_time_colname:
                         colnames_found = True
                         abet_name_list = row
                     else:
