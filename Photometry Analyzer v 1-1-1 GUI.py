@@ -119,7 +119,7 @@ class Photometry_Data:
                 anymaze_data.append(row)
         anymaze_file.close()
         anymaze_numpy = np.array(anymaze_data)
-        self.anymaze_pandas = pd.DataFrame(data=anymaze_numpy,columns=self.anymaze_colnames)
+        self.anymaze_pandas = pd.DataFrame(data=anymaze_numpy,columns=anymaze_colnames)
         self.anymaze_pandas = self.anymaze_pandas.astype('float')
 
     def abet_trial_definition(self,start_event_group,end_event_group,extra_prior_time=0,extra_follow_time=0):
@@ -190,14 +190,14 @@ class Photometry_Data:
         
         anymaze_boolean_list = ['Active','Inactive']
         anymaze_operation_list = ['Less Than', 'Less Than or Equal', 'Equal', 'Greater Than or Equal', 'Greater Than','Not Equal']
-        if event_1_name == 'NA' and event2_name == 'NA' and event3_name == 'NA':
+        if event1_name == 'NA' and event2_name == 'NA' and event3_name == 'NA':
             return
         
         elif event2_name == 'NA' and event3_name == 'NA':
-            event_index = operation_search(event1_name,event1_operation_event1_value)
+            event_index = operation_search(event1_name,event1_operation,event1_value)
         elif event3_name == 'NA':
-            event1_index = operation_search(event1_name,event1_operation_event1_value)
-            event2_index = operation_search(event2_name,event2_operation_event2_value)
+            event1_index = operation_search(event1_name,event1_operation,event1_value)
+            event2_index = operation_search(event2_name,event2_operation,event2_value)
             event_index_hold = event1_index + event2_index
             event_index = list()
             for item in event_index:
@@ -206,9 +206,9 @@ class Photometry_Data:
                         event_index.append(item)
             
         else:
-            event1_index = operation_search(event1_name,event1_operation_event1_value)
-            event2_index = operation_search(event2_name,event2_operation_event2_value)
-            event3_index = operation_search(event2_name,event2_operation_event2_value)
+            event1_index = operation_search(event1_name,event1_operation,event1_value)
+            event2_index = operation_search(event2_name,event2_operation,event2_value)
+            event3_index = operation_search(event2_name,event2_operation,event2_value)
             event_index_hold = event1_index + event2_index + event3_index
             event_index = list()
             for item in event_index:
@@ -292,7 +292,7 @@ class Photometry_Data:
         doric_time = doric_time.astype(float)
         doric_time = np.asscalar(doric_time)
         anymaze_time = anymaze_ttl_active.iloc[0,0]
-        anymaze_time = float(abet_time)
+        anymaze_time = float(anymaze_time)
 
         self.anymaze_doric_sync_value = doric_time - anymaze_time
         
@@ -634,7 +634,7 @@ class Photometry_GUI:
         self.anymaze_event_location_index = 0
         
         self.curr_dir = os.getcwd()
-        self.config_path = self.curr_dir + self.folder_symbol + 'Photometry.cfg'
+        self.config_path = self.curr_dir + self.folder_symbol + 'Photometry2.cfg'
         self.config_file = open(self.config_path)
         self.configurations_list = self.config_file.readlines()
         self.config_file.close()
@@ -658,20 +658,34 @@ class Photometry_GUI:
         
         self.doric_file_path = self.configurations_list2[0]
         self.abet_file_path = self.configurations_list2[1]
-        self.event_id_var = str(self.configurations_list2[2])
-        self.event_name_var = str(self.configurations_list2[3])
-        self.event_group_var = str(self.configurations_list2[4])
-        self.event_position_var = str(self.configurations_list2[5])
-        self.event_prior_var = str(self.configurations_list2[6])
-        self.event_follow_var = str(self.configurations_list2[7])
-        self.abet_trial_start_var = str(self.configurations_list2[8])
-        self.abet_trial_end_var = str(self.configurations_list2[9])
-        self.abet_trial_iti_var = str(self.configurations_list2[10])
-        self.channel_control_var = str(self.configurations_list2[11])
-        self.channel_active_var = str(self.configurations_list2[12])
-        self.channel_ttl_var = str(self.configurations_list2[13])
-        self.low_pass_var = str(self.configurations_list2[14])
-        self.centered_z_var.set(int(self.configurations_list2[15]))
+        self.anymaze_file_path = self.configurations_list2[2]
+        self.event_id_var = str(self.configurations_list2[3])
+        self.event_name_var = str(self.configurations_list2[4])
+        self.event_group_var = str(self.configurations_list2[5])
+        self.event_position_var = str(self.configurations_list2[6])
+        self.event_prior_var = str(self.configurations_list2[7])
+        self.event_follow_var = str(self.configurations_list2[8])
+        self.abet_trial_start_var = str(self.configurations_list2[9])
+        self.abet_trial_end_var = str(self.configurations_list2[10])
+        self.abet_trial_iti_var = str(self.configurations_list2[11])
+        self.anymaze_event1_column_var = str(self.configurations_list2[12])
+        self.anymaze_event1_operation_var = str(self.configurations_list2[13])
+        self.anymaze_event1_value_var = str(self.configurations_list2[14])
+        self.anymaze_event2_column_var = str(self.configurations_list2[15])
+        self.anymaze_event2_operation_var = str(self.configurations_list2[16])
+        self.anymaze_event2_value_var = str(self.configurations_list2[17])
+        self.anymaze_event3_column_var = str(self.configurations_list2[18])
+        self.anymaze_event3_operation_var = str(self.configurations_list2[19])
+        self.anymaze_event3_value_var = str(self.configurations_list2[20])
+        self.anymaze_tolerance_var = str(self.configurations_list2[21])
+        self.anymaze_extra_prior_var = str(self.configurations_list2[22])
+        self.anymaze_extra_follow_var = str(self.configurations_list2[23])
+        self.anymaze_event_location_var = str(self.configurations_list2[24])
+        self.channel_control_var = str(self.configurations_list2[25])
+        self.channel_active_var = str(self.configurations_list2[26])
+        self.channel_ttl_var = str(self.configurations_list2[27])
+        self.low_pass_var = str(self.configurations_list2[28])
+        self.centered_z_var.set(int(self.configurations_list2[29]))
         self.title = tk.Label(self.root,text='Photometry Analyzer')
         self.title.grid(row=0,column=1)
 
@@ -811,6 +825,40 @@ class Photometry_GUI:
             self.channel_ttl_index = self.doric_name_list.index(self.channel_ttl_var)
         else:
             self.channel_ttl_index = 0
+
+    def anymaze_setting_load(self):
+        if self.anymaze_event1_column_var == 'NA':
+            self.anymaze_event1_column_index = self.anymaze_column_names.index('NA')
+            self.anymaze_event1_operation_index = 0
+            self.anymaze_event1_value_var = 0
+            self.anymaze_event1_operation_state = 'disabled'
+            self.anymaze_event1_value_state = 'disabled'
+        else:
+            try:
+                self.anymaze_event1_column_index = self.anymaze_column_names.index(self.anymaze_event1_column_var)
+                anymaze_event1_options = self.anymaze_pandas.loc[:, self.anymaze_event1_column_var]
+                anymaze_event1_options = anymaze_event1_options.unique()
+                anymaze_event1_options = list(anymaze_event1_options)
+                anymaze_event1_count = len(anymaze_event1_options)
+                if anymaze_event1_count == 2:
+                    self.anymaze_event1_operation['values'] = self.anymaze_boolean_list
+                    self.anymaze_event1_value_state = 'disabled'
+                elif anymaze_event1_count > 2:
+                    self.anymaze_event1_operation['values'] = self.anymaze_operation_list
+                    self.anymaze_event1_value_state = 'normal'
+                elif anymaze_event1_count == 1:
+                    self.anymaze_event1_value_state = 'disabled'
+                    self.anymaze_event1_operation_state = 'disabled'
+                    self.anymaze_event1_operation.config(state=self.anymaze_event1_operation_state)
+                self.anymaze_event1_value.config(state=self.anymaze_event1_value_state)
+            except:
+                self.anymaze_event1_column_index = self.anymaze_column_names.index('NA')
+                self.anymaze_event1_operation_state = 'disabled'
+                self.anymaze_event1_value_state = 'disabled'
+                self.anymaze_event1_operation_index = 0
+                self.anymaze_event1_value_var = 0
+
+
         
 
     def doric_file_load(self,path=''):
@@ -1231,7 +1279,7 @@ class Photometry_GUI:
         self.anymaze_event_location_entry.grid(row=9,column=1)
         self.anymaze_event_location_entry.current(self.anymaze_event_location_index)
 
-        self.anymaze_finish_button = tk.Button(self.anymaze_event_gui,text='Finish')
+        self.anymaze_finish_button = tk.Button(self.anymaze_event_gui,text='Finish',command=self.anymaze_event_commit)
         self.anymaze_finish_button.grid(row=10,column=1)
 
         
@@ -1337,6 +1385,9 @@ class Photometry_GUI:
         else:
             self.anymaze_event3_operation_var = self.anymaze_event3_operation.get()
             self.anymaze_event3_value_var = self.anymaze_event3_value.get()
+
+
+        self.anymaze_event_gui.destroy()
 
         
 
