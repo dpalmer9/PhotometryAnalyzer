@@ -657,6 +657,9 @@ class Photometry_GUI:
         self.anymaze_event1_value_var = 'NA'
         self.anymaze_event2_value_var = 'NA'
         self.anymaze_event3_value_var = 'NA'
+        self.anymaze_event1_operation_list = 'NA'
+        self.anymaze_event2_operation_list = 'NA'
+        self.anymaze_event3_operation_list = 'NA'
         self.anymaze_tolerance_var = 0
         self.anymaze_extra_prior_var = 0
         self.anymaze_extra_follow_var = 0
@@ -890,23 +893,82 @@ class Photometry_GUI:
                 anymaze_event1_options = anymaze_event1_options.unique()
                 anymaze_event1_options = list(anymaze_event1_options)
                 anymaze_event1_count = len(anymaze_event1_options)
+                print(anymaze_event1_count)
                 if anymaze_event1_count == 2:
-                    self.anymaze_event1_operation['values'] = self.anymaze_boolean_list
+                    self.anymaze_event1_operation_list = self.anymaze_boolean_list
                     self.anymaze_event1_value_state = 'disabled'
                 elif anymaze_event1_count > 2:
-                    self.anymaze_event1_operation['values'] = self.anymaze_operation_list
+                    self.anymaze_event1_operation_list = self.anymaze_operation_list
                     self.anymaze_event1_value_state = 'normal'
                 elif anymaze_event1_count == 1:
                     self.anymaze_event1_value_state = 'disabled'
                     self.anymaze_event1_operation_state = 'disabled'
-                    self.anymaze_event1_operation.config(state=self.anymaze_event1_operation_state)
-                self.anymaze_event1_value.config(state=self.anymaze_event1_value_state)
             except:
                 self.anymaze_event1_column_index = self.anymaze_column_names.index('NA')
                 self.anymaze_event1_operation_state = 'disabled'
                 self.anymaze_event1_value_state = 'disabled'
                 self.anymaze_event1_operation_index = 0
                 self.anymaze_event1_value_var = 0
+                
+        if self.anymaze_event2_column_var == 'NA':
+            self.anymaze_event2_column_index = self.anymaze_column_names.index('NA')
+            self.anymaze_event2_operation_index = 0
+            self.anymaze_event2_value_var = 0
+            self.anymaze_event2_operation_state = 'disabled'
+            self.anymaze_event2_value_state = 'disabled'
+        else:
+            try:
+                self.anymaze_event2_column_index = self.anymaze_column_names.index(self.anymaze_event2_column_var)
+                anymaze_event2_options = self.anymaze_pandas.loc[:, self.anymaze_event2_column_var]
+                anymaze_event2_options = anymaze_event2_options.unique()
+                anymaze_event2_options = list(anymaze_event2_options)
+                anymaze_event2_count = len(anymaze_event2_options)
+                if anymaze_event2_count == 2:
+                    self.anymaze_event2_operation_list = self.anymaze_boolean_list
+                    self.anymaze_event2_value_state = 'disabled'
+                elif anymaze_event2_count > 2:
+                    self.anymaze_event2_operation_list = self.anymaze_operation_list
+                    self.anymaze_event2_value_state = 'normal'
+                elif anymaze_event2_count == 1:
+                    self.anymaze_event2_value_state = 'disabled'
+                    self.anymaze_event2_operation_state = 'disabled'
+            except:
+                self.anymaze_event2_column_index = self.anymaze_column_names.index('NA')
+                self.anymaze_event2_operation_state = 'disabled'
+                self.anymaze_event2_value_state = 'disabled'
+                self.anymaze_event2_operation_index = 0
+                self.anymaze_event2_value_var = 0
+
+                
+        if self.anymaze_event3_column_var == 'NA':
+            self.anymaze_event3_column_index = self.anymaze_column_names.index('NA')
+            self.anymaze_event3_operation_index = 0
+            self.anymaze_event3_value_var = 0
+            self.anymaze_event3_operation_state = 'disabled'
+            self.anymaze_event3_value_state = 'disabled'
+        else:
+            try:
+                self.anymaze_event3_column_index = self.anymaze_column_names.index(self.anymaze_event3_column_var)
+                anymaze_event3_options = self.anymaze_pandas.loc[:, self.anymaze_event3_column_var]
+                anymaze_event3_options = anymaze_event3_options.unique()
+                anymaze_event3_options = list(anymaze_event3_options)
+                anymaze_event3_count = len(anymaze_event3_options)
+                if anymaze_event3_count == 2:
+                    self.anymaze_event3_operation_list = self.anymaze_boolean_list
+                    self.anymaze_event3_value_state = 'disabled'
+                elif anymaze_event3_count > 2:
+                    self.anymaze_event3_operation_list = self.anymaze_operation_list
+                    self.anymaze_event3_value_state = 'normal'
+                elif anymaze_event3_count == 1:
+                    self.anymaze_event3_value_state = 'disabled'
+                    self.anymaze_event3_operation_state = 'disabled'
+            except:
+                self.anymaze_event3_column_index = self.anymaze_column_names.index('NA')
+                self.anymaze_event3_operation_state = 'disabled'
+                self.anymaze_event3_value_state = 'disabled'
+                self.anymaze_event3_operation_index = 0
+                self.anymaze_event3_value_var = 0
+
 
 
         
@@ -1097,6 +1159,9 @@ class Photometry_GUI:
         except:
             self.anymaze_column_names = ['NA']
 
+        if path != '':
+            self.anymaze_setting_load()
+
     def abet_event_name_check(self,event):
         self.abet_group_name = self.abet_pandas.loc[self.abet_pandas[self.abet_event_name_col] == str(self.event_id_type_entry.get()),'Item_Name']
         self.abet_group_name = self.abet_group_name.unique()
@@ -1271,46 +1336,76 @@ class Photometry_GUI:
         self.anymaze_event1_colname = ttk.Combobox(self.anymaze_event_gui,values=self.anymaze_column_names)
         self.anymaze_event1_colname.grid(row=2,column=0)
         self.anymaze_event1_colname.bind("<<ComboboxSelected>>", self.anymaze_column_set_event1)
-        self.anymaze_event1_column_index = self.anymaze_column_names.index(self.anymaze_event1_column_var)
-        self.anymaze_event1_colname.current(self.anymaze_event1_column_index)
-        self.anymaze_event1_operation = ttk.Combobox(self.anymaze_event_gui,values=['NA'])
+        try:
+            self.anymaze_event1_column_index = self.anymaze_column_names.index(self.anymaze_event1_column_var)
+            self.anymaze_event1_colname.current(self.anymaze_event1_column_index)
+        except:
+            self.anymaze_event1_colname.current(0)
+        self.anymaze_event1_operation = ttk.Combobox(self.anymaze_event_gui,values=self.anymaze_event1_operation_list)
         self.anymaze_event1_operation.grid(row=2,column=1)
         self.anymaze_event1_operation.config(state=self.anymaze_event1_operation_state)
+        try:
+            self.anymaze_event1_operation_index = self.anymaze_event1_operation_list.index(self.anymaze_event1_operation_var)
+            self.anymaze_event1_operation.current(self.anymaze_event1_operation_index)
+        except:
+            self.anymaze_event1_operation.current(0)
         self.anymaze_event1_value = tk.Entry(self.anymaze_event_gui)
         self.anymaze_event1_value.grid(row=2,column=2)
         self.anymaze_event1_value.config(state=self.anymaze_event1_value_state)
+        if self.anymaze_event1_value_state != "disabled":
+            self.anymaze_event1_value.insert(END,self.anymaze_event1_value_var)
         if self.anymaze_event1_column_var != 'NA':
-            self.anymaze_column_set_event1(event='NA')
+            self.anymaze_column_set_event1(event=self.anymaze_event1_column_var)
         self.anymaze_event1_operation.current(self.anymaze_event1_operation_index)
 
         self.anymaze_event2_colname = ttk.Combobox(self.anymaze_event_gui,values=self.anymaze_column_names)
         self.anymaze_event2_colname.grid(row=3,column=0)
         self.anymaze_event2_colname.bind("<<ComboboxSelected>>", self.anymaze_column_set_event2)
-        self.anymaze_event2_column_index = self.anymaze_column_names.index(self.anymaze_event2_column_var)
-        self.anymaze_event2_colname.current(self.anymaze_event2_column_index)
-        self.anymaze_event2_operation = ttk.Combobox(self.anymaze_event_gui,values=['NA'])
+        try:
+            self.anymaze_event2_column_index = self.anymaze_column_names.index(self.anymaze_event2_column_var)
+            self.anymaze_event2_colname.current(self.anymaze_event2_column_index)
+        except:
+            self.anymaze_event2_colname.current(0)
+        self.anymaze_event2_operation = ttk.Combobox(self.anymaze_event_gui,values=self.anymaze_event2_operation_list)
         self.anymaze_event2_operation.grid(row=3,column=1)
         self.anymaze_event2_operation.config(state=self.anymaze_event2_operation_state)
+        try:
+            self.anymaze_event2_operation_index = self.anymaze_event2_operation_list.index(self.anymaze_event2_operation_var)
+            self.anymaze_event2_operation.current(self.anymaze_event2_operation_index)
+        except:
+            self.anymaze_event2_operation.current(0)
         self.anymaze_event2_value = tk.Entry(self.anymaze_event_gui)
         self.anymaze_event2_value.grid(row=3,column=2)
         self.anymaze_event2_value.config(state=self.anymaze_event2_value_state)
+        if self.anymaze_event2_value_state != "disabled":
+            self.anymaze_event2_value.insert(END,self.anymaze_event2_value_var)
         if self.anymaze_event2_column_var != 'NA':
-            self.anymaze_column_set_event2()
+            self.anymaze_column_set_event2(event=self.anymaze_event2_column_var)
         self.anymaze_event2_operation.current(self.anymaze_event2_operation_index)
 
         self.anymaze_event3_colname = ttk.Combobox(self.anymaze_event_gui,values=self.anymaze_column_names)
         self.anymaze_event3_colname.grid(row=4,column=0)
         self.anymaze_event3_colname.bind("<<ComboboxSelected>>", self.anymaze_column_set_event3)
-        self.anymaze_event3_column_index = self.anymaze_column_names.index(self.anymaze_event3_column_var)
-        self.anymaze_event3_colname.current(self.anymaze_event3_column_index)
-        self.anymaze_event3_operation = ttk.Combobox(self.anymaze_event_gui,values=['NA'])
+        try:
+            self.anymaze_event3_column_index = self.anymaze_column_names.index(self.anymaze_event3_column_var)
+            self.anymaze_event3_colname.current(self.anymaze_event3_column_index)
+        except:
+            self.anymaze_event3_colname.current(0)
+        self.anymaze_event3_operation = ttk.Combobox(self.anymaze_event_gui,values=self.anymaze_event3_operation_list)
         self.anymaze_event3_operation.grid(row=4,column=1)
         self.anymaze_event3_operation.config(state=self.anymaze_event3_operation_state)
+        try:
+            self.anymaze_event3_operation_index = self.anymaze_event3_operation_list.index(self.anymaze_event3_operation_var)
+            self.anymaze_event3_operation.current(self.anymaze_event3_operation_index)
+        except:
+            self.anymaze_event1_operation.current(0)
         self.anymaze_event3_value = tk.Entry(self.anymaze_event_gui)
         self.anymaze_event3_value.grid(row=4,column=2)
         self.anymaze_event3_value.config(state=self.anymaze_event3_value_state)
+        if self.anymaze_event3_value_state != "disabled":
+            self.anymaze_event3_value.insert(END,self.anymaze_event3_value_var)
         if self.anymaze_event3_column_var != 'NA':
-            self.anymaze_column_set_event3()
+            self.anymaze_column_set_event3(event=self.anymaze_event3_column_var)
         self.anymaze_event3_operation.current(self.anymaze_event3_operation_index)
 
         self.anymaze_settings_label = tk.Label(self.anymaze_event_gui,text='Anymaze Settings')
@@ -1367,11 +1462,13 @@ class Photometry_GUI:
             anymaze_event1_options = list(anymaze_event1_options)
             anymaze_event1_count = len(anymaze_event1_options)
             if anymaze_event1_count == 2:
-                self.anymaze_event1_operation['values'] = self.anymaze_boolean_list
+                self.anymaze_event1_operation_list = self.anymaze_boolean_list
+                self.anymaze_event1_operation['values'] = self.anymaze_event1_operation_list
                 self.anymaze_event1_value_state = 'disabled'
                 self.anymaze_event1_boolean = True
             elif anymaze_event1_count > 2:
-                self.anymaze_event1_operation['values'] = self.anymaze_operation_list
+                self.anymaze_event1_operation_list = self.anymaze_operation_list
+                self.anymaze_event1_operation['values'] = self.anymaze_event1_operation_list
                 self.anymaze_event1_value_state = 'normal'
                 self.anymaze_event1_boolean = False
             elif anymaze_event1_count == 1:
@@ -1395,11 +1492,13 @@ class Photometry_GUI:
             anymaze_event2_options = list(anymaze_event2_options)
             anymaze_event2_count = len(anymaze_event2_options)
             if anymaze_event2_count == 2:
-                self.anymaze_event2_operation['values'] = self.anymaze_boolean_list
+                self.anymaze_event2_operation_list = self.anymaze_boolean_list
+                self.anymaze_event2_operation['values'] = self.anymaze_event2_operation_list
                 self.anymaze_event2_value_state = 'disabled'
                 self.anymaze_event2_boolean = True
             elif anymaze_event2_count > 2:
-                self.anymaze_event2_operation['values'] = self.anymaze_operation_list
+                self.anymaze_event2_operation_list = self.anymaze_operation_list
+                self.anymaze_event2_operation['values'] = self.anymaze_event2_operation_list
                 self.anymaze_event2_value_state = 'normal'
                 self.anymaze_event2_boolean = False
             elif anymaze_event2_count == 1:
@@ -1423,11 +1522,13 @@ class Photometry_GUI:
             anymaze_event3_options = list(anymaze_event3_options)
             anymaze_event3_count = len(anymaze_event3_options)
             if anymaze_event3_count == 2:
-                self.anymaze_event3_operation['values'] = self.anymaze_boolean_list
+                self.anymaze_event3_operation_list = self.anymaze_boolean_list
+                self.anymaze_event3_operation['values'] = self.anymaze_event3_operation_list
                 self.anymaze_event3_value_state = 'disabled'
                 self.anymaze_event3_boolean = True
             elif anymaze_event3_count > 2:
-                self.anymaze_event3_operation['values'] = self.anymaze_operation_list
+                self.anymaze_event3_operation_list = self.anymaze_operation_list
+                self.anymaze_event3_operation['values'] = self.anymaze_event3_operation_list
                 self.anymaze_event3_value_state = 'normal'
                 self.anymaze_event3_boolean = False
             elif anymaze_event3_count == 1:
