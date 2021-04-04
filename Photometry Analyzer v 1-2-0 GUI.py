@@ -62,6 +62,13 @@ class Photometry_Data:
         colnames_found = False
         for row in abet_csv_reader:
             if colnames_found == False:
+                if row[0] == 'Animal ID':
+                    self.animal_id = str(row[1])
+                    continue
+                if row[0] == 'Date/Time':
+                    self.date = str(row[1])
+                    self.date = self.date.replace(':','-')
+                    continue
                 if len(row) == 0:
                     continue
                 if row[0] in event_time_colname:
@@ -600,13 +607,16 @@ class Photometry_Data:
 
                 return
 
-        current_time = datetime.now()
-        current_time_string = current_time.strftime('%d-%m-%Y %H-%M-%S')
 
         output_folder = self.main_folder_path + self.folder_symbol + 'Output'
         if (os.path.isdir(output_folder)) == False:
             os.mkdir(output_folder)
-        file_path_string = output_folder + self.folder_symbol +  output_data + current_time_string + '.csv'
+        if self.abet_loaded == True and self.anymaze_loaded == False:
+            file_path_string = output_folder + self.folder_symbol +  output_data + '-' + self.animal_id + ' ' + self.date + '.csv'
+        else:
+            current_time = datetime.now()
+            current_time_string = current_time.strftime('%d-%m-%Y %H-%M-%S')
+            file_path_string = output_folder + self.folder_symbol +  output_data + '-' + current_time + '.csv'
 
         if output_data in processed_list:
             self.doric_pd.to_csv(file_path_string,index=False)
