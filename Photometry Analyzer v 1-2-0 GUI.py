@@ -303,9 +303,16 @@ class Photometry_Data:
             return None
         if self.doric_loaded == False:
             return None
-        
-        doric_ttl_active = self.doric_pandas.loc[(self.doric_pandas['TTL'] > 1.00),]
-        abet_ttl_active = self.abet_pandas.loc[(self.abet_pandas['Item_Name'] == 'TTL #1'),]
+        try:
+            doric_ttl_active = self.doric_pandas.loc[(self.doric_pandas['TTL'] > 1.00),]
+        except:
+            print('No TTL Signal Detected. Ending Analysis')
+            return
+        try:
+            abet_ttl_active = self.abet_pandas.loc[(self.abet_pandas['Item_Name'] == 'TTL #1'),]
+        except:
+            print('ABET II File missing TTL Pulse Output')
+            return
 
         doric_time = doric_ttl_active.iloc[0,0]
         doric_time = doric_time.astype(float)
@@ -325,9 +332,17 @@ class Photometry_Data:
             return None
         if self.doric_loaded == False:
             return None
-        
-        doric_ttl_active = self.doric_pandas.loc[(self.doric_pandas['TTL'] > 1.00),]
-        anymaze_ttl_active = self.anymaze_pandas.loc[(self.anymaze_pandas['TTL Pulse active'] > 0),]
+
+        try:
+            doric_ttl_active = self.doric_pandas.loc[(self.doric_pandas['TTL'] > 1.00),]
+        except:
+            print('No TTL Signal Detected. Ending Analysis')
+            return
+
+        try:
+            anymaze_ttl_active = self.anymaze_pandas.loc[(self.anymaze_pandas['TTL Pulse active'] > 0),]
+        except:
+            print('Anymaze File missing TTL Pulse Output')
 
         doric_time = doric_ttl_active.iloc[0,0]
         print(doric_time)
@@ -385,8 +400,17 @@ class Photometry_Data:
         measurements_per_interval = length_time * self.sample_frequency
         if trial_definition == False:
             for index, row in self.abet_time_list.iterrows():
-                start_index = self.doric_pd['Time'].sub(self.abet_time_list.loc[index,'Start_Time']).abs().idxmin()
-                end_index = self.doric_pd['Time'].sub(self.abet_time_list.loc[index,'End_Time']).abs().idxmin()
+
+                try:
+                    start_index = self.doric_pd['Time'].sub(self.abet_time_list.loc[index,'Start_Time']).abs().idxmin()
+                except:
+                    print('Trial Start Out of Bounds, Skipping Event')
+                    continue
+                try:
+                    end_index = self.doric_pd['Time'].sub(self.abet_time_list.loc[index,'End_Time']).abs().idxmin()
+                except:
+                    print('Trial End Out of Bounds, Skipping Event')
+                    continue
 
                 while self.doric_pd.iloc[start_index, 0] > self.abet_time_list.loc[index,'Start_Time']:
                     start_index -= 1
@@ -454,8 +478,16 @@ class Photometry_Data:
                     
         elif trial_definition == True:
             for index, row in self.abet_time_list.iterrows():
-                start_index = self.doric_pd['Time'].sub(self.abet_time_list.loc[index,'Start_Time']).abs().idxmin()
-                end_index = self.doric_pd['Time'].sub(self.abet_time_list.loc[index,'End_Time']).abs().idxmin()
+                try:
+                    start_index = self.doric_pd['Time'].sub(self.abet_time_list.loc[index,'Start_Time']).abs().idxmin()
+                except:
+                    print('Trial Start Out of Bounds, Skipping Event')
+                    continue
+                try:
+                    end_index = self.doric_pd['Time'].sub(self.abet_time_list.loc[index,'End_Time']).abs().idxmin()
+                except:
+                    print('Trial End Out of Bounds, Skipping Event')
+                    continue
 
                 while self.doric_pd.iloc[start_index, 0] > self.abet_time_list.loc[index,'Start_Time']:
                     start_index -= 1
