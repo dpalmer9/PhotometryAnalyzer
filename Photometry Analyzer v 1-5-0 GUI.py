@@ -517,6 +517,7 @@ class Photometry_Data:
                     z_sd = deltaf_split.std()
 
                 trial_deltaf.loc[:,'zscore'] = (trial_deltaf.loc[:,'DeltaF'] - z_mean) / z_sd
+                trial_deltaf.loc[:,'percent_change'] = trial_deltaf.loc[:,'DeltaF'].map(lambda x: ((x - z_mean) / abs(z_mean)) * 100)
 
                 colname_1 = 'Time Trial ' + str(trial_num)
                 colname_2 = 'Z-Score Trial ' + str(trial_num)
@@ -531,6 +532,25 @@ class Photometry_Data:
                     self.partial_dataframe = self.partial_dataframe.to_frame()
                     self.partial_dataframe = self.partial_dataframe.reset_index(drop=True)
                     self.partial_dataframe = self.partial_dataframe.rename(columns={'zscore': colname_2})
+                    
+                    
+                    self.partial_deltaf = trial_deltaf.loc[:,'DeltaF']
+                    self.partial_deltaf = self.partial_deltaf.to_frame()
+                    self.partial_deltaf = self.partial_deltaf.reset_index(drop=True)
+                    self.partial_deltaf = self.partial_deltaf.rename(columns={'DeltaF': colname_2})
+                    
+                    self.final_deltaf = trial_deltaf.loc[:, ('Time', 'DeltaF')]
+                    self.final_deltaf = self.final_deltaf.reset_index(drop=True)
+                    self.final_deltaf = self.final_deltaf.rename(columns={'Time': colname_1, 'DeltaF': colname_2})
+                    
+                    self.partial_percent = trial_deltaf.loc[:,'percent_change']
+                    self.partial_percent = self.partial_percent.to_frame()
+                    self.partial_percent = self.partial_percent.reset_index(drop=True)
+                    self.partial_percent = self.partial_percent.rename(columns={'percent_change': colname_2})
+                    
+                    self.final_percent = trial_deltaf.loc[:, ('Time', 'percent_change')]
+                    self.final_percent = self.final_percent.reset_index(drop=True)
+                    self.final_percent = self.final_percent.rename(columns={'Time': colname_1, 'percent_change': colname_2})
                     trial_num += 1
                 else:
                     trial_deltaf = trial_deltaf.reset_index(drop=True)
@@ -543,10 +563,27 @@ class Photometry_Data:
                             self.final_dataframe.index.union(new_index))
                         self.partial_dataframe = self.partial_dataframe.reindex(
                             self.partial_dataframe.index.union(new_index))
+                        self.partial_deltaf = self.partial_deltaf.reindex(
+                            self.partial_deltaf.index.union(new_index))
+                        self.final_deltaf = self.final_deltaf.reindex(
+                            self.final_deltaf.index.union(new_index))
+                        self.partial_percent = self.partial_percent.reindex(
+                            self.partial_percent.index.union(new_index))
+                        self.final_percent = self.final_percent.reindex(
+                            self.final_percent.index.union(new_index))
+                        
+                        
+                        
 
                     self.partial_dataframe.loc[:,colname_2] = trial_deltaf.loc[:,'zscore']
+                    self.partial_deltaf.loc[:,colname_2] = trial_deltaf.loc[:,'DeltaF']
                     self.final_dataframe.loc[:,colname_1] = trial_deltaf.loc[:,'Time']
                     self.final_dataframe.loc[:,colname_2] = trial_deltaf.loc[:,'zscore']
+                    self.final_deltaf.loc[:,colname_1] = trial_deltaf.loc[:,'Time']
+                    self.final_deltaf.loc[:,colname_2] = trial_deltaf.loc[:,'DeltaF']
+                    self.partial_percent.loc[:,colname_2] = trial_deltaf.loc[:,'percent_change']
+                    self.final_percent.loc[:,colname_1] = trial_deltaf.loc[:,'Time']
+                    self.final_percent.loc[:,colname_2] = trial_deltaf.loc[:,'percent_change']
                     trial_num += 1
                     
         elif trial_definition in trial_definition_ind_list:
@@ -578,11 +615,9 @@ class Photometry_Data:
                 if whole_trial_normalize == False:
                     if normalize_side in left_selection_list:
                         trial_start_index_diff = self.trial_definition_times.loc[:,'Start_Time'].sub((self.abet_time_list.loc[index,'Start_Time'] + self.extra_prior))#.abs().idxmin()
-                        #print(trial_start_index_diff)
                         trial_start_index_diff[trial_start_index_diff > 0] = np.nan
                         trial_start_index = trial_start_index_diff.abs().idxmin(skipna=True)
                         trial_start_window = self.trial_definition_times.iloc[trial_start_index,0]
-                        print([(self.abet_time_list.loc[index,'Start_Time'] + self.extra_prior),trial_start_window])
                         trial_iti_window = trial_start_window - float(trial_iti_pad)
                         iti_data = self.doric_pd.loc[(self.doric_pd.loc[:,'Time'] >= trial_iti_window) & (self.doric_pd.loc[:,'Time'] <= trial_start_window),'DeltaF']
                     elif normalize_side in right_selection_list:
@@ -599,6 +634,7 @@ class Photometry_Data:
                     z_sd = deltaf_split.std()
                     
                 trial_deltaf.loc[:,'zscore'] = trial_deltaf.loc[:,'DeltaF'].map(lambda x: ((x - z_mean)/z_sd))
+                trial_deltaf.loc[:,'percent_change'] = trial_deltaf.loc[:,'DeltaF'].map(lambda x: ((x - z_mean) / abs(z_mean)) * 100)
                 #trial_deltaf.loc[:,'zscore'] = (trial_deltaf.loc[:,'DeltaF'] - z_mean) / z_sd
 
                 colname_1 = 'Time Trial ' + str(trial_num)
@@ -614,6 +650,25 @@ class Photometry_Data:
                     self.partial_dataframe = self.partial_dataframe.to_frame()
                     self.partial_dataframe = self.partial_dataframe.reset_index(drop=True)
                     self.partial_dataframe = self.partial_dataframe.rename(columns={'zscore': colname_2})
+                    
+                    self.partial_deltaf = trial_deltaf.loc[:,'DeltaF']
+                    self.partial_deltaf = self.partial_deltaf.to_frame()
+                    self.partial_deltaf = self.partial_deltaf.reset_index(drop=True)
+                    self.partial_deltaf = self.partial_deltaf.rename(columns={'DeltaF': colname_2})
+                    
+                    self.final_deltaf = trial_deltaf.loc[:, ('Time', 'DeltaF')]
+                    self.final_deltaf = self.final_deltaf.reset_index(drop=True)
+                    self.final_deltaf = self.final_deltaf.rename(columns={'Time': colname_1, 'DeltaF': colname_2})
+                    
+                    self.partial_percent = trial_deltaf.loc[:,'percent_change']
+                    self.partial_percent = self.partial_percent.to_frame()
+                    self.partial_percent = self.partial_percent.reset_index(drop=True)
+                    self.partial_percent = self.partial_percent.rename(columns={'percent_change': colname_2})
+                    
+                    self.final_percent = trial_deltaf.loc[:, ('Time', 'percent_change')]
+                    self.final_percent = self.final_percent.reset_index(drop=True)
+                    self.final_percent = self.final_percent.rename(columns={'Time': colname_1, 'percent_change': colname_2})
+                    
                     trial_num += 1
                 else:
                     trial_deltaf = trial_deltaf.reset_index(drop=True)
@@ -626,10 +681,27 @@ class Photometry_Data:
                             self.final_dataframe.index.union(new_index))
                         self.partial_dataframe = self.partial_dataframe.reindex(
                             self.partial_dataframe.index.union(new_index))
+                        self.partial_deltaf = self.partial_deltaf.reindex(
+                            self.partial_deltaf.index.union(new_index))
+                        self.final_deltaf = self.final_deltaf.reindex(
+                            self.final_deltaf.index.union(new_index))
+                        self.partial_percent = self.partial_percent.reindex(
+                            self.partial_percent.index.union(new_index))
+                        self.final_percent = self.final_percent.reindex(
+                            self.final_percent.index.union(new_index))                        
 
                     self.partial_dataframe.loc[:,colname_2] = trial_deltaf.loc[:,'zscore']
                     self.final_dataframe.loc[:,colname_1] = trial_deltaf.loc[:,'Time']
                     self.final_dataframe.loc[:,colname_2] = trial_deltaf.loc[:,'zscore']
+                    self.partial_dataframe.loc[:,colname_2] = trial_deltaf.loc[:,'zscore']
+                    self.partial_deltaf.loc[:,colname_2] = trial_deltaf.loc[:,'DeltaF']
+                    self.final_dataframe.loc[:,colname_1] = trial_deltaf.loc[:,'Time']
+                    self.final_dataframe.loc[:,colname_2] = trial_deltaf.loc[:,'zscore']
+                    self.final_deltaf.loc[:,colname_1] = trial_deltaf.loc[:,'Time']
+                    self.final_deltaf.loc[:,colname_2] = trial_deltaf.loc[:,'DeltaF']
+                    self.partial_percent.loc[:,colname_2] = trial_deltaf.loc[:,'percent_change']
+                    self.final_percent.loc[:,colname_1] = trial_deltaf.loc[:,'Time']
+                    self.final_percent.loc[:,colname_2] = trial_deltaf.loc[:,'percent_change']
                     trial_num += 1
                     
         elif trial_definition in trial_definition_overall_list:
@@ -700,6 +772,7 @@ class Photometry_Data:
                 
                 trial_deltaf = self.doric_pd.iloc[start_index:end_index]
                 trial_deltaf.loc[:,'zscore'] = trial_deltaf.loc[:,'DeltaF'].map(lambda x: ((x - z_mean)/z_sd))
+                trial_deltaf.loc[:,'percent_change'] = trial_deltaf.loc[:,'DeltaF'].map(lambda x: ((x - z_mean) / abs(z_mean)) * 100)
                 colname_1 = 'Time Trial ' + str(trial_num)
                 colname_2 = 'Z-Score Trial ' + str(trial_num)
 
@@ -713,6 +786,26 @@ class Photometry_Data:
                     self.partial_dataframe = self.partial_dataframe.to_frame()
                     self.partial_dataframe = self.partial_dataframe.reset_index(drop=True)
                     self.partial_dataframe = self.partial_dataframe.rename(columns={'zscore': colname_2})
+                    
+                    self.partial_deltaf = trial_deltaf.loc[:,'DeltaF']
+                    self.partial_deltaf = self.partial_deltaf.to_frame()
+                    self.partial_deltaf = self.partial_deltaf.reset_index(drop=True)
+                    self.partial_deltaf = self.partial_deltaf.rename(columns={'DeltaF': colname_2})
+                    
+                    self.final_deltaf = trial_deltaf.loc[:, ('Time', 'DeltaF')]
+                    self.final_deltaf = self.final_deltaf.to_frame()
+                    self.final_deltaf = self.final_deltaf.reset_index(drop=True)
+                    self.final_deltaf = self.final_deltaf.rename(columns={'Time': colname_1, 'DeltaF': colname_2})
+
+                    self.partial_percent = trial_deltaf.loc[:,'percent_change']
+                    self.partial_percent = self.partial_percent.to_frame()
+                    self.partial_percent = self.partial_percent.reset_index(drop=True)
+                    self.partial_percent = self.partial_percent.rename(columns={'percent_change': colname_2})
+                    
+                    self.final_percent = trial_deltaf.loc[:, ('Time', 'percent_change')]
+                    self.final_percent = self.final_percent.reset_index(drop=True)
+                    self.final_percent = self.final_percent.rename(columns={'Time': colname_1, 'percent_change': colname_2})                    
+                    
                     trial_num += 1
                 else:
                     trial_deltaf = trial_deltaf.reset_index(drop=True)
@@ -725,20 +818,37 @@ class Photometry_Data:
                             self.final_dataframe.index.union(new_index))
                         self.partial_dataframe = self.partial_dataframe.reindex(
                             self.partial_dataframe.index.union(new_index))
-
+                        self.partial_deltaf = self.partial_deltaf.reindex(
+                            self.partial_deltaf.index.union(new_index))
+                        self.final_deltaf = self.final_deltaf.reindex(
+                            self.final_deltaf.index.union(new_index))
+                        self.partial_percent = self.partial_percent.reindex(
+                            self.partial_percent.index.union(new_index))
+                        self.final_percent = self.final_percent.reindex(
+                            self.final_percent.index.union(new_index))
+                        
+                        
                     self.partial_dataframe.loc[:,colname_2] = trial_deltaf.loc[:,'zscore']
+                    self.partial_deltaf.loc[:,colname_2] = trial_deltaf.loc[:,'DeltaF']
                     self.final_dataframe.loc[:,colname_1] = trial_deltaf.loc[:,'Time']
                     self.final_dataframe.loc[:,colname_2] = trial_deltaf.loc[:,'zscore']
+                    self.final_deltaf.loc[:,colname_1] = trial_deltaf.loc[:,'Time']
+                    self.final_deltaf.loc[:,colname_2] = trial_deltaf.loc[:,'DeltaF']
+                    self.partial_percent.loc[:,colname_2] = trial_deltaf.loc[:,'percent_change']
+                    self.final_percent.loc[:,colname_1] = trial_deltaf.loc[:,'Time']
+                    self.final_percent.loc[:,colname_2] = trial_deltaf.loc[:,'percent_change']
                     trial_num += 1
                     
                 
 
     def write_data(self,output_data,include_abet=False,filename_override=''):
         processed_list = [1,'Full','full']
-        partial_list = [3,'Simple','simple']
-        final_list = [5,'Timed','timed']
+        partial_list = [4,'Simple','simple']
+        final_list = [7,'Timed','timed']
         partialf_list = [2,'SimpleF','simplef']
-        finalf_list = [4,'TimedF','timedf']
+        finalf_list = [5,'TimedF','timedf']
+        partialp_list = [3,'SimpleP','simplep']
+        finalp_list = [6,'TimedP','timedp']
 
         if self.abet_loaded == True:
             if include_abet == True:
@@ -791,7 +901,7 @@ class Photometry_Data:
         else:
             current_time = datetime.now()
             current_time_string = current_time.strftime('%d-%m-%Y %H-%M-%S')
-            file_path_string = output_folder + self.folder_symbol +  output_data + '-' + current_time_string + '.csv'
+            file_path_string = output_folder + self.folder_symbol +  output_data + '-' + current_time + '.csv'
         
         if filename_override != '':
             file_path_string = output_folder + self.folder_symbol + filename_override
@@ -807,6 +917,10 @@ class Photometry_Data:
             self.partial_deltaf.to_csv(file_path_string,index=False)
         elif output_data in finalf_list:
             self.final_deltaf.to_csv(file_path_string,index=False)
+        elif output_data in partialp_list:
+            self.partial_percent.to_csv(file_path_string,index=False)
+        elif output_data in finalp_list:
+            self.final_percent.to_csv(file_path_string,index=False)
 
 class Photometry_GUI:
     def __init__(self):
@@ -822,6 +936,8 @@ class Photometry_GUI:
         self.full_var = tk.IntVar()
         self.simplef_var = tk.IntVar()
         self.timedf_var = tk.IntVar()
+        self.simplep_var = tk.IntVar()
+        self.timedp_var = tk.IntVar()
         self.centered_z_var = tk.IntVar()
 
         self.doric_file_path = ''
@@ -988,18 +1104,22 @@ class Photometry_GUI:
         self.output_title.grid(row=6,column=1)
 
         self.simplef_output_check = tk.Checkbutton(self.root,text='Simple Delta-F',variable=self.simplef_var)
-        self.simplef_output_check.grid(row=7,column=1)
+        self.simplef_output_check.grid(row=7,column=0)
+        self.simplep_output_check = tk.Checkbutton(self.root,text='Simple Percent',variable=self.simplep_var)
+        self.simplep_output_check.grid(row=7,column=1)
         self.simple_output_check = tk.Checkbutton(self.root,text='Simple Z',variable=self.simple_var)
         self.simple_output_check.grid(row=7,column=2)
         self.timedf_output_check = tk.Checkbutton(self.root,text='Timed Delta-F',variable=self.timedf_var)
         self.timedf_output_check.grid(row=8,column=0)
+        self.timedp_output_check = tk.Checkbutton(self.root,text='Timed Percent',variable=self.timedp_var)
+        self.timedp_output_check.grid(row=8,column=1)
         self.timed_output_check = tk.Checkbutton(self.root,text='Timed Z',variable=self.timed_var)
-        self.timed_output_check.grid(row=8,column=1)
+        self.timed_output_check.grid(row=8,column=2)
         self.full_output_check = tk.Checkbutton(self.root,text='Full Output',variable=self.full_var)
-        self.full_output_check.grid(row=7,column=0)
+        self.full_output_check.grid(row=9,column=0)
 
         self.run_button = tk.Button(self.root,text='Run',command=self.run_photometry_analysis)
-        self.run_button.grid(row=9,column=1)
+        self.run_button.grid(row=10,column=1)
         
         if self.doric_file_path != '':
             self.doric_file_load(path=self.doric_file_path)
@@ -1954,12 +2074,11 @@ class Photometry_GUI:
 
             self.photometry_object.doric_process(int(self.low_pass_var))
             
-            
             if self.centered_z_var.get() == 0:
-                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=True,trial_definition = True,
+                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=False,trial_definition = True,
                                                        trial_iti_pad=float(self.abet_trial_iti_var))    
             elif self.centered_z_var.get() == 1:
-                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=False, trial_definition = True,
+                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=True, trial_definition = True,
                                                        trial_iti_pad=float(self.abet_trial_iti_var))
 
 
@@ -1973,6 +2092,10 @@ class Photometry_GUI:
                 self.photometry_object.write_data('SimpleF')
             if self.timedf_var.get() == 1:
                 self.photometry_object.write_data('TimedF')
+            if self.simplep_var.get() == 1:
+                self.photometry_object.write_data('SimpleP')
+            if self.timedp_var.get() == 1:
+                self.photometry_object.write_data('TimedP')
 
 
             self.confirmation_window = tk.Toplevel()
@@ -2000,9 +2123,10 @@ class Photometry_GUI:
             
             
             if self.centered_z_var.get() == 1:
-                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=True,trial_definition = False)
+                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=False,trial_definition = False,
+                                                       trial_iti_pad=float(self.anymaze_event_pad_var))
             elif self.centered_z_var.get() == 0:
-                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=False, trial_definition = False,
+                self.photometry_object.trial_separator(normalize=True,whole_trial_normalize=True, trial_definition = False,
                                                        trial_iti_pad=float(self.anymaze_event_pad_var))
 
 
@@ -2016,6 +2140,10 @@ class Photometry_GUI:
                 self.photometry_object.write_data('SimpleF')
             if self.timedf_var.get() == 1:
                 self.photometry_object.write_data('TimedF')
+            if self.simplep_var.get() == 1:
+                self.photometry_object.write_data('SimpleP')
+            if self.timedp_var.get() == 1:
+                self.photometry_object.write_data('TimedP')
 
 
             self.confirmation_window = tk.Toplevel()
