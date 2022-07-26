@@ -948,7 +948,10 @@ class Photometry_GUI:
         self.channel_active_var = self.config_file['Doric']['active_channel']
         self.channel_ttl_var = self.config_file['Doric']['ttl_channel']
         self.low_pass_var = self.config_file['Doric']['low_pass']
-        self.centered_z_var.set(int(self.config_file['Doric']['centered_z']))
+        if self.config_file['Doric']['centered_z'] != '':
+            self.centered_z_var.set(int(self.config_file['Doric']['centered_z']))
+        else:
+            self.centered_z_var.set(0)
         self.title = tk.Label(self.root,text='Photometry Analyzer')
         self.title.grid(row=0,column=1)
 
