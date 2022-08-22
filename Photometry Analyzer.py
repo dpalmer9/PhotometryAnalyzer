@@ -1,29 +1,24 @@
 # Module Load Section
+import configparser
+import csv
 import os
 import sys
-import csv
 import tkinter as tk
-import time
-import configparser
 from datetime import datetime
-from tkinter import N
-from tkinter import S
-from tkinter import W
-from tkinter import E
 from tkinter import END
-from tkinter import BROWSE
-from tkinter import VERTICAL
-from tkinter import ttk
-import numpy as np
 from tkinter import filedialog
-from scipy import fftpack
-from scipy import signal
+from tkinter import ttk
+
+import numpy as np
 import pandas as pd
+from scipy import signal
 
 
 class PhotometryData:
     def __init__(self):
 
+        self.abet_pd = None
+        self.trial_definition_times = None
         self.abet_time_list = None
         self.doric_pd = None
         self.anymaze_doric_sync_value = None
@@ -189,6 +184,7 @@ class PhotometryData:
                           filter_event_position=None,
                           filter_event=False, filter_before=True, centered_event=False,
                           extra_prior_time=0, extra_follow_time=0):
+        global filter_event_abet
         if filter_event_position is None:
             filter_event_position = ['']
         if start_event_position is None:
@@ -451,7 +447,7 @@ class PhotometryData:
         f_data = f_data.astype(float)
 
         self.sample_frequency = len(time_data) / (time_data[(len(time_data) - 1)] - time_data[0])
-        filter_frequency_normalized = filter_frequency / (self.sample_frequency / 2)
+        filter_frequency / (self.sample_frequency / 2)
         butter_filter = signal.butter(N=2, Wn=filter_frequency, btype='lowpass', analog=False, output='sos',
                                       fs=self.sample_frequency)
         filtered_f0 = signal.sosfilt(butter_filter, f0_data)
@@ -466,8 +462,8 @@ class PhotometryData:
         self.doric_pd['DeltaF'] = delta_f
         self.doric_pd = self.doric_pd.rename(columns={0: 'Time', 1: 'DeltaF'})
 
-    def trial_separator(self, normalize=True, whole_trial_normalize=True, normalize_side='Left', trial_definition=False,
-                        trial_iti_pad=0, event_location='None'):
+    def trial_separator(self, whole_trial_normalize=True, normalize_side='Left', trial_definition=False,
+                        trial_iti_pad=0):
         if not self.abet_loaded and not self.anymaze_loaded:
             return
         left_selection_list = ['Left', 'Before', 'L', 'l', 'left', 'before', 1]
@@ -512,13 +508,11 @@ class PhotometryData:
                 trial_deltaf = self.doric_pd.iloc[start_index:end_index]
                 if not whole_trial_normalize:
                     if normalize_side in left_selection_list:
-                        norm_start_time = self.abet_time_list.loc[index, 'Start_Time']
                         norm_end_time = self.abet_time_list.loc[index, 'Start_Time'] + trial_iti_pad
                         iti_deltaf = trial_deltaf.loc[
                             trial_deltaf['Time'] < norm_end_time, 'DeltaF']
                     elif normalize_side in right_selection_list:
                         norm_start_time = self.abet_time_list.loc[index, 'End_Time'] - trial_iti_pad
-                        norm_end_time = self.abet_time_list.loc[index, 'End_Time']
                         iti_deltaf = trial_deltaf.loc[
                             trial_deltaf['Time'] > norm_start_time, 'DeltaF']
                     z_mean = iti_deltaf.mean()
@@ -757,50 +751,8 @@ class PhotometryData:
         partialf_list = [2, 'SimpleF', 'simplef']
         finalf_list = [4, 'TimedF', 'timedf']
 
-        if self.abet_loaded == True:
-            if include_abet == True:
-                # end_path = filedialog.asksaveasfilename(title='Save Output Data',
-                # filetypes=(('Excel File', '*.xlsx'), ('all files', '*.')))
-
-                abet_file = open(self.abet_file_path)
-                abet_csv_reader = csv.reader(abet_file)
-                colnames_found = False
-                colnames = list()
-                abet_raw_data = list()
-
-                for row in abet_csv_reader:
-                    if colnames_found == False:
-                        if len(row) == 0:
-                            continue
-
-                        if row[0] == 'Evnt_Time':
-                            colnames_found = True
-                            colnames = row
-                            continue
-                        else:
-                            continue
-                    else:
-                        abet_raw_data.append(row)
-
-                self.abet_pd = pd.DataFrame(self.abet_raw_data, columns=self.colnames)
-
-                if output_data in processed_list:
-                    with pd.ExcelWriter(self.end_path) as writer:
-                        self.doric_pd.to_excel(writer, sheet_name='Photometry Data', index=False)
-                        self.abet_pd.to_excel(writer, sheet_name='ABET Trial Data', index=False)
-                elif output_data in partial_list:
-                    with pd.ExcelWriter(self.end_path) as writer:
-                        self.partial_dataframe.to_excel(writer, sheet_name='Photometry Data', index=False)
-                        self.abet_pd.to_excel(writer, sheet_name='ABET Trial Data', index=False)
-                elif output_data in final_list:
-                    with pd.ExcelWriter(self.end_path) as writer:
-                        self.final_dataframe.to_excel(writer, sheet_name='Photometry Data', index=False)
-                        self.abet_pd.to_excel(writer, sheet_name='ABET Trial Data', index=False)
-
-                return
-
         output_folder = self.main_folder_path + self.folder_symbol + 'Output'
-        if (os.path.isdir(output_folder)) == False:
+        if not (os.path.isdir(output_folder)):
             os.mkdir(output_folder)
         if self.abet_loaded == True and self.anymaze_loaded == False:
             file_path_string = output_folder + self.folder_symbol + output_data + '-' + self.animal_id + ' ' + self.date + ' ' + self.event_name + '.csv'
@@ -827,6 +779,73 @@ class PhotometryData:
 
 class PhotometryGUI:
     def __init__(self):
+        self.iti_zscoring = None
+        self.abet_event_gui = None
+        self.abet_event_title = None
+        self.event_id_type_label = None
+        self.event_id_type_entry = None
+        self.event_name_label = None
+        self.event_name_entry = None
+        self.event_group_label = None
+        self.event_group_entry = None
+        self.event_position_label = None
+        self.event_position_entry = None
+        self.event_prior_time = None
+        self.event_prior_entry = None
+        self.event_follow_time = None
+        self.event_follow_entry = None
+        self.abet_trial_definition_title = None
+        self.abet_trial_start_group_label = None
+        self.abet_trial_start_entry = None
+        self.abet_trial_end_group_label = None
+        self.abet_trial_end_entry = None
+        self.abet_trial_iti_prior_label = None
+        self.abet_trial_iti_entry = None
+        self.abet_iti_zscore_checkbutton = None
+        self.abet_event_finish_button = None
+        self.anymaze_event_gui = None
+        self.anymaze_event_title = None
+        self.anymaze_event_type_colname = None
+        self.anymaze_event_operation_colname = None
+        self.anymaze_event_value_colname = None
+        self.anymaze_event1_colname = None
+        self.anymaze_event2_value = None
+        self.anymaze_event3_colname = None
+        self.anymaze_event3_operation = None
+        self.anymaze_finish_button = None
+        self.anymaze_event_pad_entry = None
+        self.anymaze_event_pad_label = None
+        self.anymaze_event_location_entry = None
+        self.anymaze_event_location_list = None
+        self.anymaze_event_location_label = None
+        self.anymaze_extra_follow_entry = None
+        self.anymaze_extra_follow_label = None
+        self.anymaze_extra_prior_entry = None
+        self.anymaze_extra_prior_label = None
+        self.anymaze_tolerance_entry = None
+        self.anymaze_tolerance_label = None
+        self.anymaze_settings_label = None
+        self.anymaze_event3_value = None
+        self.settings_gui = None
+        self.settings_title = None
+        self.channel_control_label = None
+        self.channel_control_entry = None
+        self.channel_active_label = None
+        self.channel_active_entry = None
+        self.channel_ttl_label = None
+        self.channel_ttl_entry = None
+        self.low_pass_freq_label = None
+        self.low_pass_freq_entry = None
+        self.centered_z_checkbutton = None
+        self.settings_finish_button = None
+        self.error_window = None
+        self.error_text = None
+        self.error_button = None
+        self.output_path = None
+        self.photometry_object = None
+        self.confirmation_window = None
+        self.confirmation_text = None
+        self.confirmation_button = None
         if sys.platform == 'linux' or sys.platform == 'darwin':
             self.folder_symbol = '/'
         elif sys.platform == 'win32':
@@ -1845,7 +1864,7 @@ class PhotometryGUI:
             self.anymaze_event2_value_var = 'None'
         else:
             self.anymaze_event2_operation_var = self.anymaze_event2_operation.get()
-            if self.anymaze_event2_boolean == True:
+            if self.anymaze_event2_boolean:
                 self.anymaze_event2_operation_index = self.anymaze_boolean_list.index(self.anymaze_event2_operation_var)
             else:
                 self.anymaze_event2_operation_index = self.anymaze_operation_list.index(
@@ -1858,7 +1877,7 @@ class PhotometryGUI:
             self.anymaze_event3_value_var = 'None'
         else:
             self.anymaze_event3_operation_var = self.anymaze_event3_operation.get()
-            if self.anymaze_event3_boolean == True:
+            if self.anymaze_event3_boolean:
                 self.anymaze_event3_operation_index = self.anymaze_boolean_list.index(self.anymaze_event3_operation_var)
             else:
                 self.anymaze_event3_operation_index = self.anymaze_operation_list.index(
@@ -1956,7 +1975,7 @@ class PhotometryGUI:
         if self.doric_file_path == '':
             self.create_error_report('No Doric file defined. Please select a filepath in order to start.')
 
-        if os.path.isfile(self.doric_file_path) == False:
+        if not os.path.isfile(self.doric_file_path):
             self.create_error_report('Doric file is not valid. Please select a new filepath')
 
         if self.abet_file_path != '' and self.anymaze_file_path == '':
@@ -1967,8 +1986,7 @@ class PhotometryGUI:
             self.photometry_object.load_abet_data(self.abet_file_path)
 
             if self.iti_normalize == 1:
-                self.photometry_object.abet_trial_definition(self.abet_trial_start_var, self.abet_trial_end_var,
-                                                             extra_prior_time=float(self.abet_trial_iti_var))
+                self.photometry_object.abet_trial_definition(self.abet_trial_start_var, self.abet_trial_end_var)
 
             if self.event_position_var == '':
                 self.photometry_object.abet_search_event(start_event_id=self.event_id_var,
@@ -1990,11 +2008,11 @@ class PhotometryGUI:
             self.photometry_object.doric_process(int(self.low_pass_var))
 
             if self.centered_z_var.get() == 0:
-                self.photometry_object.trial_separator(normalize=True, whole_trial_normalize=True,
+                self.photometry_object.trial_separator(whole_trial_normalize=True,
                                                        trial_definition=True,
                                                        trial_iti_pad=float(self.abet_trial_iti_var))
             elif self.centered_z_var.get() == 1:
-                self.photometry_object.trial_separator(normalize=True, whole_trial_normalize=False,
+                self.photometry_object.trial_separator(whole_trial_normalize=False,
                                                        trial_definition=True,
                                                        trial_iti_pad=float(self.abet_trial_iti_var))
 
@@ -2023,7 +2041,7 @@ class PhotometryGUI:
                                                    self.channel_active_index, self.channel_ttl_index)
             self.photometry_object.load_anymaze_data(self.anymaze_file_path)
 
-            self.photometry_object.anymaze_search_event_OR(event1_name=self.anymaze_event1_column_var,
+            self.photometry_object.anymaze_search_event_or(event1_name=self.anymaze_event1_column_var,
                                                            event1_operation=self.anymaze_event1_operation_var,
                                                            event1_value=self.anymaze_event1_value_var,
                                                            event2_name=self.anymaze_event2_column_var,
@@ -2036,15 +2054,15 @@ class PhotometryGUI:
                                                            extra_prior_time=float(self.anymaze_extra_prior_var),
                                                            extra_follow_time=float(self.anymaze_extra_follow_var))
 
-            self.photometry_object.anymaze_doric_synchronize_OR()
+            self.photometry_object.anymaze_doric_synchronize_or()
 
             self.photometry_object.doric_process(int(self.low_pass_var))
 
             if self.centered_z_var.get() == 1:
-                self.photometry_object.trial_separator(normalize=True, whole_trial_normalize=True,
+                self.photometry_object.trial_separator(whole_trial_normalize=True,
                                                        trial_definition=False)
             elif self.centered_z_var.get() == 0:
-                self.photometry_object.trial_separator(normalize=True, whole_trial_normalize=False,
+                self.photometry_object.trial_separator(whole_trial_normalize=False,
                                                        trial_definition=False,
                                                        trial_iti_pad=float(self.anymaze_event_pad_var))
 
