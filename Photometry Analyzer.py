@@ -65,7 +65,8 @@ class PhotometryData:
         self.extra_prior = 0
         self.extra_follow = 0
 
-    """ load_abet_data - Loads in the ABET unprocessed data to the PhotometryData object
+    """ load_abet_data - Loads in the ABET unprocessed data to the PhotometryData object. Also
+    extracts the animal ID and date 
      Arguments:
      filepath = The filepath for the ABET unprocessed csv. Generated from GUI path """
     def load_abet_data(self, filepath):
@@ -112,28 +113,10 @@ class PhotometryData:
     def load_doric_data(self, filepath, ch1_col, ch2_col, ttl_col):
         self.doric_file_path = filepath
         self.doric_loaded = True
-        doric_file = open(self.doric_file_path)
-        doric_csv_reader = csv.reader(doric_file)
-        first_row_read = False
-        second_row_read = False
-        doric_name_list = list()
-        doric_list = list()
-        for row in doric_csv_reader:
-            if not first_row_read:
-                first_row_read = True
-                continue
-            if second_row_read is False and first_row_read is True:
-                doric_name_list = [row[0], row[ch1_col], row[ch2_col], row[ttl_col]]
-                second_row_read = True
-                continue
-            else:
-                if row[ch1_col] == '' or row[ch2_col] == '' or row[ttl_col] == '':
-                    continue
-                doric_list.append([row[0], row[ch1_col], row[ch2_col], row[ttl_col]])
-        doric_file.close()
-        doric_numpy = np.array(doric_list)
-        self.doric_pandas = pd.DataFrame(data=doric_numpy, columns=doric_name_list)
-        self.doric_pandas.columns = ['Time', 'Control', 'Active', 'TTL']
+        colnames = ['Time', 'Control', 'Active', 'TTL']
+        doric_data = pd.read_csv(self.doric_file_path, header=1)
+        self.doric_pandas = doric_data.iloc[:, [0, ch1_col, ch2_col, ttl_col]]
+        self.doric_pandas.columns = colnames
         self.doric_pandas = self.doric_pandas.astype('float')
 
     """ load_anymaze_data - Loads in AnyMaze session data into the PhotometryData object.
@@ -218,6 +201,7 @@ class PhotometryData:
                           filter_event_position=None,
                           filter_event=False, filter_before=True,
                           extra_prior_time=0, extra_follow_time=0):
+
         filter_event_abet = None
         if filter_event_position is None:
             filter_event_position = ['']
@@ -789,8 +773,6 @@ class PhotometryData:
         processed_list = [1, 'Full', 'full']
         partial_list = [3, 'Simple', 'simple']
         final_list = [5, 'Timed', 'timed']
-        #partialf_list = [2, 'SimpleF', 'simplef']
-        #finalf_list = [4, 'TimedF', 'timedf']
 
         output_folder = self.main_folder_path + self.folder_symbol + 'Output'
         if not (os.path.isdir(output_folder)):
