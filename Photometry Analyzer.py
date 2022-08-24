@@ -17,6 +17,8 @@ from scipy import signal
 class PhotometryData:
     def __init__(self):
 
+        self.partial_dataframe = None
+        self.final_dataframe = None
         self.abet_pd = None
         self.trial_definition_times = None
         self.abet_time_list = None
@@ -110,7 +112,7 @@ class PhotometryData:
             if not first_row_read:
                 first_row_read = True
                 continue
-            if second_row_read == False and first_row_read == True:
+            if second_row_read is False and first_row_read is True:
                 doric_name_list = [row[0], row[ch1_col], row[ch2_col], row[ttl_col]]
                 second_row_read = True
                 continue
@@ -182,9 +184,9 @@ class PhotometryData:
                           start_event_position=None,
                           filter_event_id='1', filter_event_group='', filter_event_item_name='',
                           filter_event_position=None,
-                          filter_event=False, filter_before=True, centered_event=False,
+                          filter_event=False, filter_before=True,
                           extra_prior_time=0, extra_follow_time=0):
-        global filter_event_abet
+        filter_event_abet = None
         if filter_event_position is None:
             filter_event_position = ['']
         if start_event_position is None:
@@ -282,6 +284,8 @@ class PhotometryData:
                 search_data = self.anymaze_pandas.loc[self.anymaze_pandas[event] > val, :]
             elif operation == 'Not Equal':
                 search_data = self.anymaze_pandas.loc[self.anymaze_pandas[event] != val, :]
+            else:
+                return
 
             search_index = search_data.index
             search_index = search_index.tolist()
@@ -384,14 +388,14 @@ class PhotometryData:
         if not self.doric_loaded:
             return None
         try:
-            doric_ttl_active = self.doric_pandas.loc[(self.doric_pandas['TTL'] > 1.00),]
-        except:
-            print('No TTL Signal Detected. Ending Analysis')
+            doric_ttl_active = self.doric_pandas.loc[(self.doric_pandas['TTL'] > 1.00), ]
+        except KeyError:
+            print('No TTL Signal Detected. Ending Analysis.')
             return
         try:
-            abet_ttl_active = self.abet_pandas.loc[(self.abet_pandas['Item_Name'] == 'TTL #1'),]
-        except:
-            print('ABET II File missing TTL Pulse Output')
+            abet_ttl_active = self.abet_pandas.loc[(self.abet_pandas['Item_Name'] == 'TTL #1'), ]
+        except KeyError:
+            print('ABET II File missing TTL Pulse Output. Ending Analysis.')
             return
 
         doric_time = doric_ttl_active.iloc[0, 0]
@@ -413,15 +417,16 @@ class PhotometryData:
             return None
 
         try:
-            doric_ttl_active = self.doric_pandas.loc[(self.doric_pandas['TTL'] > 1.00),]
-        except:
-            print('No TTL Signal Detected. Ending Analysis')
+            doric_ttl_active = self.doric_pandas.loc[(self.doric_pandas['TTL'] > 1.00), ]
+        except KeyError:
+            print('No TTL Signal Detected. Ending Analysis.')
             return
 
         try:
-            anymaze_ttl_active = self.anymaze_pandas.loc[(self.anymaze_pandas['TTL Pulse active'] > 0),]
-        except:
-            print('Anymaze File missing TTL Pulse Output')
+            anymaze_ttl_active = self.anymaze_pandas.loc[(self.anymaze_pandas['TTL Pulse active'] > 0), ]
+        except KeyError:
+            print('Anymaze File missing TTL Pulse Output. Ending Analysis.')
+            return
 
         doric_time = doric_ttl_active.iloc[0, 0]
         doric_time = doric_time.astype(float)
@@ -484,12 +489,12 @@ class PhotometryData:
 
                 try:
                     start_index = self.doric_pd['Time'].sub(self.abet_time_list.loc[index, 'Start_Time']).abs().idxmin()
-                except:
+                except IndexError:
                     print('Trial Start Out of Bounds, Skipping Event')
                     continue
                 try:
                     end_index = self.doric_pd['Time'].sub(self.abet_time_list.loc[index, 'End_Time']).abs().idxmin()
-                except:
+                except IndexError:
                     print('Trial End Out of Bounds, Skipping Event')
                     continue
 
@@ -515,6 +520,9 @@ class PhotometryData:
                         norm_start_time = self.abet_time_list.loc[index, 'End_Time'] - trial_iti_pad
                         iti_deltaf = trial_deltaf.loc[
                             trial_deltaf['Time'] > norm_start_time, 'DeltaF']
+                    else:
+                        print('no specified side to normalize')
+                        return
                     z_mean = iti_deltaf.mean()
                     z_sd = iti_deltaf.std()
                 else:
@@ -560,13 +568,13 @@ class PhotometryData:
                 try:
                     start_index = self.doric_pd.loc[:, 'Time'].sub(
                         self.abet_time_list.loc[index, 'Start_Time']).abs().idxmin()
-                except:
+                except IndexError:
                     print('Trial Start Out of Bounds, Skipping Event')
                     continue
                 try:
                     end_index = self.doric_pd.loc[:, 'Time'].sub(
                         self.abet_time_list.loc[index, 'End_Time']).abs().idxmin()
-                except:
+                except IndexError:
                     print('Trial End Out of Bounds, Skipping Event')
                     continue
 
@@ -601,6 +609,9 @@ class PhotometryData:
                         trial_iti_window = trial_end_window + trial_iti_pad
                         iti_data = self.doric_pd.loc[(self.doric_pd['Time'] >= trial_end_window) & (
                                 self.doric_pd['Time'] <= trial_iti_window), 'DeltaF']
+                    else:
+                        print('no specified side to normalize')
+                        return
 
                     z_mean = iti_data.mean()
                     z_sd = iti_data.std()
@@ -649,17 +660,18 @@ class PhotometryData:
             mod_trial_times.iloc[0, 0] = np.nan
             mod_trial_times['Start_Time'] = mod_trial_times['Start_Time'].shift(-1)
             mod_trial_times = mod_trial_times[:-1]
+            full_iti_deltaf = list()
             for index, row in mod_trial_times.iterrows():
                 try:
                     end_index = self.doric_pd.loc[:, 'Time'].sub(
                         mod_trial_times.loc[index, 'Start_Time']).abs().idxmin()
-                except:
+                except IndexError:
                     print('Trial Start Out of Bounds, Skipping Event')
                     continue
                 try:
                     start_index = self.doric_pd.loc[:, 'Time'].sub(
                         mod_trial_times.loc[index, 'End_Time']).abs().idxmin()
-                except:
+                except IndexError:
                     print('Trial End Out of Bounds, Skipping Event')
                     continue
 
@@ -677,10 +689,7 @@ class PhotometryData:
 
                 iti_deltaf = self.doric_pd.iloc[start_index:end_index]
                 iti_deltaf = iti_deltaf.loc[:, 'DeltaF']
-                if index == 0:
-                    full_iti_deltaf = iti_deltaf
-                else:
-                    full_iti_deltaf = full_iti_deltaf.append(iti_deltaf)
+                full_iti_deltaf = full_iti_deltaf.append(iti_deltaf)
 
             z_mean = full_iti_deltaf.mean()
             z_sd = full_iti_deltaf.std()
@@ -689,13 +698,13 @@ class PhotometryData:
                 try:
                     start_index = self.doric_pd.loc[:, 'Time'].sub(
                         self.abet_time_list.loc[index, 'Start_Time']).abs().idxmin()
-                except:
+                except IndexError:
                     print('Trial Start Out of Bounds, Skipping Event')
                     continue
                 try:
                     end_index = self.doric_pd.loc[:, 'Time'].sub(
                         self.abet_time_list.loc[index, 'End_Time']).abs().idxmin()
-                except:
+                except IndexError:
                     print('Trial End Out of Bounds, Skipping Event')
                     continue
 
@@ -744,18 +753,19 @@ class PhotometryData:
                     self.final_dataframe.loc[:, colname_2] = trial_deltaf.loc[:, 'zscore']
                     trial_num += 1
 
-    def write_data(self, output_data, include_abet=False, filename_override=''):
+    def write_data(self, output_data, filename_override=''):
         processed_list = [1, 'Full', 'full']
         partial_list = [3, 'Simple', 'simple']
         final_list = [5, 'Timed', 'timed']
-        partialf_list = [2, 'SimpleF', 'simplef']
-        finalf_list = [4, 'TimedF', 'timedf']
+        #partialf_list = [2, 'SimpleF', 'simplef']
+        #finalf_list = [4, 'TimedF', 'timedf']
 
         output_folder = self.main_folder_path + self.folder_symbol + 'Output'
         if not (os.path.isdir(output_folder)):
             os.mkdir(output_folder)
-        if self.abet_loaded == True and self.anymaze_loaded == False:
-            file_path_string = output_folder + self.folder_symbol + output_data + '-' + self.animal_id + ' ' + self.date + ' ' + self.event_name + '.csv'
+        if self.abet_loaded is True and self.anymaze_loaded is False:
+            file_path_string = output_folder + self.folder_symbol + output_data + '-' + self.animal_id + ' ' + \
+                               self.date + ' ' + self.event_name + '.csv'
         else:
             current_time = datetime.now()
             current_time_string = current_time.strftime('%d-%m-%Y %H-%M-%S')
@@ -771,14 +781,21 @@ class PhotometryData:
             self.partial_dataframe.to_csv(file_path_string, index=False)
         elif output_data in final_list:
             self.final_dataframe.to_csv(file_path_string, index=False)
-        elif output_data in partialf_list:
-            self.partial_deltaf.to_csv(file_path_string, index=False)
-        elif output_data in finalf_list:
-            self.final_deltaf.to_csv(file_path_string, index=False)
+        # elif output_data in partialf_list:
+            # self.partial_deltaf.to_csv(file_path_string, index=False)
+        # elif output_data in finalf_list:
+            # self.final_deltaf.to_csv(file_path_string, index=False)
 
 
 class PhotometryGUI:
     def __init__(self):
+        self.anymaze_event2_operation = None
+        self.anymaze_event2_colname = None
+        self.anymaze_event1_value = None
+        self.anymaze_event1_operation = None
+        self.anymaze_pandas = None
+        self.abet_pandas = None
+        self.abet_event_name_col = None
         self.iti_zscoring = None
         self.abet_event_gui = None
         self.abet_event_title = None
@@ -1179,7 +1196,7 @@ class PhotometryGUI:
                 elif anymaze_event1_count == 1:
                     self.anymaze_event1_value_state = 'disabled'
                     self.anymaze_event1_operation_state = 'disabled'
-            except:
+            except ValueError:
                 self.anymaze_event1_column_index = self.anymaze_column_names.index('None')
                 self.anymaze_event1_operation_state = 'disabled'
                 self.anymaze_event1_value_state = 'disabled'
@@ -1208,7 +1225,7 @@ class PhotometryGUI:
                 elif anymaze_event2_count == 1:
                     self.anymaze_event2_value_state = 'disabled'
                     self.anymaze_event2_operation_state = 'disabled'
-            except:
+            except ValueError:
                 self.anymaze_event2_column_index = self.anymaze_column_names.index('None')
                 self.anymaze_event2_operation_state = 'disabled'
                 self.anymaze_event2_value_state = 'disabled'
@@ -1237,7 +1254,7 @@ class PhotometryGUI:
                 elif anymaze_event3_count == 1:
                     self.anymaze_event3_value_state = 'disabled'
                     self.anymaze_event3_operation_state = 'disabled'
-            except:
+            except ValueError:
                 self.anymaze_event3_column_index = self.anymaze_column_names.index('None')
                 self.anymaze_event3_operation_state = 'disabled'
                 self.anymaze_event3_value_state = 'disabled'
@@ -1250,7 +1267,7 @@ class PhotometryGUI:
                                                               filetypes=(('csv files', '*.csv'), ('all files', '*.')))
         else:
             self.doric_file_path = path
-            if os.path.isfile(path) != True:
+            if not os.path.isfile(path):
                 self.doric_file_path = ''
                 self.doric_field.delete(0, END)
                 self.doric_field.insert(END, str(self.doric_file_path))
@@ -1265,10 +1282,10 @@ class PhotometryGUI:
             second_row_read = False
             self.doric_name_list = list()
             for row in doric_csv_reader:
-                if first_row_read == False:
+                if not first_row_read:
                     first_row_read = True
                     continue
-                if second_row_read == False and first_row_read == True:
+                if second_row_read is False and first_row_read is True:
                     self.doric_name_list = row
                     break
             doric_file.close()
@@ -1307,7 +1324,7 @@ class PhotometryGUI:
                                                              filetypes=(('csv files', '*.csv'), ('all files', '*.')))
         else:
             self.abet_file_path = path
-            if os.path.isfile(path) != True:
+            if not os.path.isfile(path):
                 self.abet_file_path = ''
                 self.abet_field.delete(0, END)
                 self.abet_field.insert(END, str(self.abet_file_path))
@@ -1321,7 +1338,7 @@ class PhotometryGUI:
             abet_name_list = list()
             colnames_found = False
             for row in abet_csv_reader:
-                if colnames_found == False:
+                if not colnames_found:
                     if len(row) == 0:
                         continue
                     if row[0] in self.event_time_colname:
@@ -1407,7 +1424,7 @@ class PhotometryGUI:
                                                                 filetypes=(('csv files', '*.csv'), ('all files', '*.')))
         else:
             self.anymaze_file_path = path
-            if os.path.isfile(path) != True:
+            if not os.path.isfile(path):
                 self.anymaze_file_path = ''
                 self.anymaze_field.delete(0, END)
                 self.anymaze_field.insert(END, str(self.anymaze_file_path))
@@ -1421,7 +1438,7 @@ class PhotometryGUI:
             colname_found = False
             anymaze_data = list()
             for row in anymaze_csv:
-                if colname_found == False:
+                if not colname_found:
                     self.anymaze_column_names = row
                     colname_found = True
                 else:
@@ -1851,7 +1868,7 @@ class PhotometryGUI:
             self.anymaze_event1_value_var = 'None'
         else:
             self.anymaze_event1_operation_var = self.anymaze_event1_operation.get()
-            if self.anymaze_event1_boolean == True:
+            if self.anymaze_event1_boolean:
                 self.anymaze_event1_operation_index = self.anymaze_boolean_list.index(self.anymaze_event1_operation_var)
             else:
                 self.anymaze_event1_operation_index = self.anymaze_operation_list.index(
@@ -1964,11 +1981,11 @@ class PhotometryGUI:
             self.create_error_report('No ABET or Anymaze file defined. Please select a filepath in order to start.')
             return
 
-        if os.path.isfile(self.abet_file_path) == False and self.abet_file_path != '':
+        if not os.path.isfile(self.abet_file_path) and self.abet_file_path != '':
             self.create_error_report('File path for ABET File is not valid. Please select a new filepath.')
             return
 
-        if os.path.isfile(self.anymaze_file_path) == False and self.anymaze_file_path != '':
+        if not os.path.isfile(self.anymaze_file_path) and self.anymaze_file_path != '':
             self.create_error_report('File path for Anymaze file is not valid. Please select a new filepath.')
             return
 
@@ -1993,13 +2010,12 @@ class PhotometryGUI:
                                                          start_event_group=self.event_group_var,
                                                          extra_prior_time=float(self.event_prior_var),
                                                          extra_follow_time=float(self.event_follow_var),
-                                                         centered_event=True, start_event_item_name=self.event_name_var)
+                                                         start_event_item_name=self.event_name_var)
             else:
                 self.photometry_object.abet_search_event(start_event_id=self.event_id_var,
                                                          start_event_group=self.event_group_var,
                                                          extra_prior_time=float(self.event_prior_var),
                                                          extra_follow_time=float(self.event_follow_var),
-                                                         centered_event=True,
                                                          start_event_position=self.event_position_var,
                                                          start_event_item_name=self.event_name_var)
 
