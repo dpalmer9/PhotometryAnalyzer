@@ -65,6 +65,9 @@ class PhotometryData:
         self.extra_prior = 0
         self.extra_follow = 0
 
+    """ load_abet_data - Loads in the ABET unprocessed data to the PhotometryData object
+     Arguments:
+     filepath = The filepath for the ABET unprocessed csv. Generated from GUI path """
     def load_abet_data(self, filepath):
         self.abet_file_path = filepath
         self.abet_loaded = True
@@ -99,6 +102,13 @@ class PhotometryData:
         abet_numpy = np.array(abet_data_list)
         self.abet_pandas = pd.DataFrame(data=abet_numpy, columns=abet_name_list)
 
+    """ load_doric_data - Loads in the doric data to the PhotometryData object
+     Arguments:
+     filepath = The filepath for the doric photometry csv. Generated from GUI path
+     ch1_col = The column index for the isobestic channel data
+     ch2_col = The column index for the active channel data
+     ttl_col = The column index for the TTL data """
+
     def load_doric_data(self, filepath, ch1_col, ch2_col, ttl_col):
         self.doric_file_path = filepath
         self.doric_loaded = True
@@ -126,31 +136,28 @@ class PhotometryData:
         self.doric_pandas.columns = ['Time', 'Control', 'Active', 'TTL']
         self.doric_pandas = self.doric_pandas.astype('float')
 
+    """ load_anymaze_data - Loads in AnyMaze session data into the PhotometryData object.
+    Arguments:
+    filepath = the filepath of the AnyMaze session data. Generated from GUI path"""
     def load_anymaze_data(self, filepath):
         self.anymaze_file_path = filepath
         self.anymaze_loaded = True
-        anymaze_file = open(self.anymaze_file_path)
-        anymaze_csv = csv.reader(anymaze_file)
-        colname_found = False
-        anymaze_data = list()
-        anymaze_colnames = list()
-        for row in anymaze_csv:
-            if not colname_found:
-                anymaze_colnames = row
-                colname_found = True
-            else:
-                anymaze_data.append(row)
-        anymaze_file.close()
-        anymaze_numpy = np.array(anymaze_data)
-        self.anymaze_pandas = pd.DataFrame(data=anymaze_numpy, columns=anymaze_colnames)
+        self.anymaze_pandas = pd.read_csv(self.anymaze_file_path, header=0)
         self.anymaze_pandas = self.anymaze_pandas.replace(r'^\s*$', np.nan, regex=True)
         self.anymaze_pandas = self.anymaze_pandas.astype('float')
+
+    """ abet_trial_definition - Defines a trial structure for the components of the ABET II unprocessed data.
+    Arguments:
+    start_event_group = the name of an ABET II Condition Event that defines the start of a trial
+    end_event_group = the name of an ABET II Condition Event that defines the end of a trial
+    Photometry Analyzer currently only supports start group definitions.
+    Photometry Batch supports multiple start and end group definitions
+    MousePAD will eventually support all definitions as well as sessions with no definition"""
 
     def abet_trial_definition(self, start_event_group, end_event_group):
         if not self.abet_loaded:
             return None
 
-        print(isinstance(start_event_group, list))
         if isinstance(start_event_group, list) and isinstance(end_event_group, list):
             event_group_list = start_event_group + end_event_group
             filtered_abet = self.abet_pandas[self.abet_pandas.Item_Name.isin(event_group_list)]
@@ -179,6 +186,31 @@ class PhotometryData:
         self.trial_definition_times = pd.concat([start_times, end_times], axis=1)
         self.trial_definition_times.columns = ['Start_Time', 'End_Time']
         self.trial_definition_times = self.trial_definition_times.reset_index(drop=True)
+
+    """ abet_search_event - This function searches through the ABET unprocessed data 
+    for events specified in the ABET GUI. These events can be Condition Events, Variable Events,
+    Touch Up/Down Events, Input Transition On/Off Events. NOTE this version of the function was
+    generated in PhotoBatch and contains code for filtering primary events. This feature is not
+    implemented in PhotometryAnalyzer.
+    Arguments:
+    start_event_id = The numerical value in the ABET II unprocessed file denoting the type of event.
+    E.g. Condition Event, Variable Event
+    start_event_group = The numerical value denoting the group number as defined by the ABET II
+    schedule designer
+    start_event_item name = The name of the specific event in the Item Name column.
+    start_event_position = A numerical value denoting the positional argument of the event in the case of a
+    Touch Up/Down event
+    filter_event_id = The numerical value in the ABET II unprocessed file denoting the type of filter event.
+    filter_event_group = The numerical value denoting the group number as defined by the ABET II schedule designer
+    for the filtering event
+    filter_event_item_name = The name of the specific event in the Item Name column for the filter event
+    filter_event_position = A numerical value denoting the positional argument of the filter event in the case of
+    a Touch Up/Down event
+    filter_event = A boolean value denoting whether to check for a filter
+    filter_before = A boolean value denoting whether the filter is an event preceding or following the main event
+    extra_prior_time = A float value denoting the amount of time prior to the main event to pad it by
+    extra_follow_time = A float value denoting the amount of time following the maine vent to pad it by
+    """
 
     def abet_search_event(self, start_event_id='1', start_event_group='', start_event_item_name='',
                           start_event_position=None,
@@ -781,10 +813,6 @@ class PhotometryData:
             self.partial_dataframe.to_csv(file_path_string, index=False)
         elif output_data in final_list:
             self.final_dataframe.to_csv(file_path_string, index=False)
-        # elif output_data in partialf_list:
-            # self.partial_deltaf.to_csv(file_path_string, index=False)
-        # elif output_data in finalf_list:
-            # self.final_deltaf.to_csv(file_path_string, index=False)
 
 
 class PhotometryGUI:
@@ -1651,7 +1679,7 @@ class PhotometryGUI:
         try:
             self.anymaze_event1_column_index = self.anymaze_column_names.index(self.anymaze_event1_column_var)
             self.anymaze_event1_colname.current(self.anymaze_event1_column_index)
-        except:
+        except ValueError:
             self.anymaze_event1_colname.current(0)
         self.anymaze_event1_operation = ttk.Combobox(self.anymaze_event_gui, values=self.anymaze_event1_operation_list)
         self.anymaze_event1_operation.grid(row=2, column=1)
@@ -1660,7 +1688,7 @@ class PhotometryGUI:
             self.anymaze_event1_operation_index = self.anymaze_event1_operation_list.index(
                 self.anymaze_event1_operation_var)
             self.anymaze_event1_operation.current(self.anymaze_event1_operation_index)
-        except:
+        except ValueError:
             self.anymaze_event1_operation.current(0)
         self.anymaze_event1_value = tk.Entry(self.anymaze_event_gui)
         self.anymaze_event1_value.grid(row=2, column=2)
@@ -1677,7 +1705,7 @@ class PhotometryGUI:
         try:
             self.anymaze_event2_column_index = self.anymaze_column_names.index(self.anymaze_event2_column_var)
             self.anymaze_event2_colname.current(self.anymaze_event2_column_index)
-        except:
+        except ValueError:
             self.anymaze_event2_colname.current(0)
         self.anymaze_event2_operation = ttk.Combobox(self.anymaze_event_gui, values=self.anymaze_event2_operation_list)
         self.anymaze_event2_operation.grid(row=3, column=1)
@@ -1686,7 +1714,7 @@ class PhotometryGUI:
             self.anymaze_event2_operation_index = self.anymaze_event2_operation_list.index(
                 self.anymaze_event2_operation_var)
             self.anymaze_event2_operation.current(self.anymaze_event2_operation_index)
-        except:
+        except ValueError:
             self.anymaze_event2_operation.current(0)
         self.anymaze_event2_value = tk.Entry(self.anymaze_event_gui)
         self.anymaze_event2_value.grid(row=3, column=2)
@@ -1703,7 +1731,7 @@ class PhotometryGUI:
         try:
             self.anymaze_event3_column_index = self.anymaze_column_names.index(self.anymaze_event3_column_var)
             self.anymaze_event3_colname.current(self.anymaze_event3_column_index)
-        except:
+        except ValueError:
             self.anymaze_event3_colname.current(0)
         self.anymaze_event3_operation = ttk.Combobox(self.anymaze_event_gui, values=self.anymaze_event3_operation_list)
         self.anymaze_event3_operation.grid(row=4, column=1)
@@ -1712,7 +1740,7 @@ class PhotometryGUI:
             self.anymaze_event3_operation_index = self.anymaze_event3_operation_list.index(
                 self.anymaze_event3_operation_var)
             self.anymaze_event3_operation.current(self.anymaze_event3_operation_index)
-        except:
+        except ValueError:
             self.anymaze_event1_operation.current(0)
         self.anymaze_event3_value = tk.Entry(self.anymaze_event_gui)
         self.anymaze_event3_value.grid(row=4, column=2)
