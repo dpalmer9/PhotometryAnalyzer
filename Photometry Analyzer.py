@@ -278,6 +278,24 @@ class PhotometryData:
         self.extra_follow = extra_follow_time
         self.extra_prior = extra_prior_time
 
+    """anymaze_search_event_or - This function searches for relevant behavioural events in the anymaze time series 
+    session data. This function will accept up to three different criteria and account for boolean and non-boolean 
+    measures. This function will also account for total length of relevant events, as well as which portion of the 
+    event is relevant for relating to photometry.
+    Arguments (for all 3 events):
+    event_name = The name of the particular event in the time series
+    event_operation = The name of the mathematical operation. For Boolean is True or False. 
+    For numerical <. <=, =, !=, >=, & >
+    event_value = The specific value assigned to the event
+    Arguments (general):
+    event_tolerance = The amount of time that must be between two events to be considered separate
+    extra_prior_time = The amount of time to pad prior to the event of interest
+    extra_follow_time = The amount of time to pad following the event of interest
+    event_definition = A variable that tracks which part of a continuous event is relevant for centering. 
+    Options include: Event Start (first time point of event), Event Center (middle point of the event), and Event
+    End (final time point of event)
+    """
+
     def anymaze_search_event_or(self, event1_name, event1_operation, event1_value=0, event2_name='None',
                                 event2_operation='None', event2_value=0, event3_name='None', event3_operation='None',
                                 event3_value=0,
@@ -398,6 +416,10 @@ class PhotometryData:
         self.anymaze_event_times.columns = ['Start_Time', 'End_Time']
         self.abet_event_times = self.anymaze_event_times
 
+    """ abet_doric_synchronize - This function searches for TTL timestamps in the ABET II raw data and
+    relates it to TTL pulses detected in the photometer. The adjusted sync value is calculated and the 
+    doric photometry data time is adjusted to be in reference to the ABET II file"""
+
     def abet_doric_synchronize(self):
         if not self.abet_loaded:
             return None
@@ -425,6 +447,10 @@ class PhotometryData:
         self.doric_time = pd.to_numeric(self.doric_pandas['Time'])
 
         self.doric_pandas['Time'] = self.doric_time - self.abet_doric_sync_value
+
+    """ anymaze_doric_synchronize - This function searches for TTL timestamps in the Anymaze time series data and
+        relates it to TTL pulses detected in the photometer. The adjusted sync value is calculated and the 
+        doric photometry data time is adjusted to be in reference to the Anymaze file"""
 
     def anymaze_doric_synchronize_or(self):
         if not self.anymaze_loaded:
@@ -456,6 +482,12 @@ class PhotometryData:
 
         self.doric_pandas['Time'] = self.doric_time - self.anymaze_doric_sync_value
 
+    """doric_process - This function calculates the delta-f value based on the isobestic and active channel data.
+    The two channels are first put through a 2nd order low-pass butterworth filter with a user-specified cutoff. 
+    Following filtering, the data is fit with least squares regression to a linear function. Finally, the fitted data
+    is used to calculate a delta-F value.
+    Arguments:
+    filter_frequency = The cut-off frequency used for the low-pass filter"""
     def doric_process(self, filter_frequency=6):
         doric_pandas_cut = self.doric_pandas[self.doric_pandas['Time'] >= 0]
 
@@ -482,6 +514,15 @@ class PhotometryData:
         self.doric_pd = pd.DataFrame(time_data)
         self.doric_pd['DeltaF'] = delta_f
         self.doric_pd = self.doric_pd.rename(columns={0: 'Time', 1: 'DeltaF'})
+
+    """trial_separator - This function takes the extracted photometry data and parses it using the event data obtained
+    from the previous functions. This function will check to make sure the events are the same length. This function will
+    also calculate the z-scores using either the entire event or the time prior to the start of a trial (i.e. iti).
+    Arguments:
+    whole_trial_normalize = A boolean value to determine whether to use the whole event to generate z-scores
+    normalize_side = Denotes whether to use the pre or post trial data to normalize if not using whole trial.
+    trial_definition = A flag to indicate whether a trial definition exists or not
+    trial_iti_pad = How long in the pre-trial time space for normalization"""
 
     def trial_separator(self, whole_trial_normalize=True, normalize_side='Left', trial_definition=False,
                         trial_iti_pad=0):
@@ -769,6 +810,11 @@ class PhotometryData:
                     self.final_dataframe.loc[:, colname_2] = trial_deltaf.loc[:, 'zscore']
                     trial_num += 1
 
+    """write_data - This function writes the relevant output to csv files. Can output in a variety of formats.
+    Arguments:
+    output_data = The structure that is requested for output. can include non-transformed (Full),
+    event only (Simple), and event + time (Timed)
+    filename_override = A string that will override any default file naming conventions."""
     def write_data(self, output_data, filename_override=''):
         processed_list = [1, 'Full', 'full']
         partial_list = [3, 'Simple', 'simple']
