@@ -84,7 +84,9 @@ class PhotometryData:
         self.trial_definition_times = pd.DataFrame()
 
     """ load_abet_data - Loads in the ABET unprocessed data to the PhotometryData object. Also
-    extracts the animal ID and date 
+    extracts the animal ID and date. csv reader import necessary due to unusual structure of
+    ABET II/ABET Cognition data structures. Once the standard data table is detected, a curated
+    subset of columns is collected . Output is moved to pandas dataframe.
      Arguments:
      filepath = The filepath for the ABET unprocessed csv. Generated from GUI path """
     def load_abet_data(self, filepath):
@@ -112,6 +114,7 @@ class PhotometryData:
                     colnames_found = True
                     self.time_var_name = row[0]
                     self.event_name_col = row[2]
+                    # Columns are 0-time, 1-Event ID, 2-Event name, 3-Item Name, 5-Group ID, 8-Arg-1 Value
                     abet_name_list = [row[0], row[1], row[2], row[3], row[5], row[8]]
                 else:
                     continue
@@ -121,7 +124,9 @@ class PhotometryData:
         abet_numpy = np.array(abet_data_list)
         self.abet_pandas = pd.DataFrame(data=abet_numpy, columns=abet_name_list)
 
-    """ load_doric_data - Loads in the doric data to the PhotometryData object
+    """ load_doric_data - Loads in the doric data to the PhotometryData object. This method uses a
+    simple pandas read csv function to import the data. User specified column indexes are used to grab only
+    the relevant columns.
      Arguments:
      filepath = The filepath for the doric photometry csv. Generated from GUI path
      ch1_col = The column index for the isobestic channel data
@@ -137,7 +142,8 @@ class PhotometryData:
         self.doric_pandas.columns = colnames
         self.doric_pandas = self.doric_pandas.astype('float')
 
-    """ load_anymaze_data - Loads in AnyMaze session data into the PhotometryData object.
+    """ load_anymaze_data - Loads in AnyMaze session data into the PhotometryData object. This method
+    uses a simple pandas import to grab all of the data. Unusual strings are converted to nan values.
     Arguments:
     filepath = the filepath of the AnyMaze session data. Generated from GUI path"""
     def load_anymaze_data(self, filepath):
@@ -148,6 +154,8 @@ class PhotometryData:
         self.anymaze_pandas = self.anymaze_pandas.astype('float')
 
     """ abet_trial_definition - Defines a trial structure for the components of the ABET II unprocessed data.
+    This method uses the Item names of Condition Events that represent the normal start and end of a trial epoch. This
+    method was expanded in PhotometryBatch to allow for multiple start and end groups.
     Arguments:
     start_event_group = the name of an ABET II Condition Event that defines the start of a trial
     end_event_group = the name of an ABET II Condition Event that defines the end of a trial
@@ -192,7 +200,8 @@ class PhotometryData:
     for events specified in the ABET GUI. These events can be Condition Events, Variable Events,
     Touch Up/Down Events, Input Transition On/Off Events. NOTE this version of the function was
     generated in PhotoBatch and contains code for filtering primary events. This feature is not
-    implemented in PhotometryAnalyzer.
+    implemented in PhotometryAnalyzer. The output of this function is a pandas dataframe with the
+    start and end times for all the identified events with the user specified padding.
     Arguments:
     start_event_id = The numerical value in the ABET II unprocessed file denoting the type of event.
     E.g. Condition Event, Variable Event
@@ -305,6 +314,7 @@ class PhotometryData:
     event_operation = The name of the mathematical operation. For Boolean is True or False. 
     For numerical <. <=, =, !=, >=, & >
     event_value = The specific value assigned to the event
+    Output is a pandas dataframe with the start and end times for all events identified with the criteria.
     Arguments (general):
     event_tolerance = The amount of time that must be between two events to be considered separate
     extra_prior_time = The amount of time to pad prior to the event of interest
@@ -436,7 +446,7 @@ class PhotometryData:
 
     """ abet_doric_synchronize - This function searches for TTL timestamps in the ABET II raw data and
     relates it to TTL pulses detected in the photometer. The adjusted sync value is calculated and the 
-    doric photometry data time is adjusted to be in reference to the ABET II file"""
+    doric photometry data time is adjusted to be in reference to the ABET II file."""
 
     def abet_doric_synchronize(self):
         if not self.abet_loaded:
@@ -468,7 +478,7 @@ class PhotometryData:
 
     """ anymaze_doric_synchronize - This function searches for TTL timestamps in the Anymaze time series data and
         relates it to TTL pulses detected in the photometer. The adjusted sync value is calculated and the 
-        doric photometry data time is adjusted to be in reference to the Anymaze file"""
+        doric photometry data time is adjusted to be in reference to the Anymaze file."""
 
     def anymaze_doric_synchronize_or(self):
         if not self.anymaze_loaded:
@@ -503,7 +513,7 @@ class PhotometryData:
     """doric_process - This function calculates the delta-f value based on the isobestic and active channel data.
     The two channels are first put through a 2nd order low-pass butterworth filter with a user-specified cutoff. 
     Following filtering, the data is fit with least squares regression to a linear function. Finally, the fitted data
-    is used to calculate a delta-F value.
+    is used to calculate a delta-F value. A pandas dataframe with the time and delta-f values is created.
     Arguments:
     filter_frequency = The cut-off frequency used for the low-pass filter"""
     def doric_process(self, filter_frequency=6):
@@ -536,7 +546,8 @@ class PhotometryData:
     """trial_separator - This function takes the extracted photometry data and parses it using the event data obtained
     from the previous functions. This function will check to make sure the events are the same length. 
     This function will also calculate the z-scores using either the entire event or the time prior to the start of a 
-    trial (i.e. iti).
+    trial (i.e. iti). The result of this function are a series of pandas dataframes corresponding to the different
+    output types in the write_data function.
     Arguments:
     whole_trial_normalize = A boolean value to determine whether to use the whole event to generate z-scores
     normalize_side = Denotes whether to use the pre or post trial data to normalize if not using whole trial.
@@ -829,7 +840,10 @@ class PhotometryData:
                     self.final_dataframe.loc[:, colname_2] = trial_deltaf.loc[:, 'zscore']
                     trial_num += 1
 
-    """write_data - This function writes the relevant output to csv files. Can output in a variety of formats.
+    """write_data - This function writes the relevant output to csv files. Can output several different types of csv
+    files depending on the flag the user has provided. Default output string includes the animal id, date, and event
+    associated with the particular analysis. The GUI object PhotometryGUI overrides this with a better naming
+    convention. Overall conventions improved in PhotometryBatch.
     Arguments:
     output_data = The structure that is requested for output. can include non-transformed (Full),
     event only (Simple), and event + time (Timed)
