@@ -17,27 +17,7 @@ from scipy import signal
 class PhotometryData:
     def __init__(self):
 
-        self.partial_dataframe = None
-        self.final_dataframe = None
-        self.abet_pd = None
-        self.trial_definition_times = None
-        self.abet_time_list = None
-        self.doric_pd = None
-        self.anymaze_doric_sync_value = None
-        self.anymaze_event_times = None
-        self.abet_event_times = None
-        self.event_name = None
-        self.sample_frequency = None
-        self.doric_time = None
-        self.doric_pandas = None
-        self.abet_raw_data = None
-        self.abet_pandas = None
-        self.doric_loaded = None
-        self.date = None
-        self.event_name_col = None
-        self.time_var_name = None
-        self.anymaze_pandas = None
-        self.animal_id = None
+        # Initialize Folder Path Variables
         self.curr_cpu_core_count = os.cpu_count()
         self.curr_dir = os.getcwd()
         if sys.platform == 'linux' or sys.platform == 'darwin':
@@ -56,14 +36,52 @@ class PhotometryData:
         self.anymaze_file_path = ''
         self.anymaze_file = ''
 
+        # Initialize Boolean Variables
+
         self.abet_loaded = False
         self.abet_searched = False
         self.anymaze_loaded = False
+        self.doric_loaded = False
+
+        # Initialize Numeric Variables
 
         self.abet_doric_sync_value = 0
+        self.anymaze_doric_sync_value = 0
 
         self.extra_prior = 0
         self.extra_follow = 0
+
+        self.sample_frequency = 0
+        self.doric_time = 0
+
+        # Initialize Descriptor Variables
+
+        self.date = None
+        self.animal_id = None
+
+        # Initialize String Variables
+
+        self.event_name_col = ''
+        self.time_var_name = ''
+        self.event_name = ''
+
+        # Initialize List Variables
+
+        self.abet_time_list = []
+        self.anymaze_event_times = []
+
+        # Initialize Data Objects (Tables, Series, etc)
+
+        self.partial_dataframe = pd.DataFrame()
+        self.final_dataframe = pd.DataFrame()
+        self.abet_pd = pd.DataFrame()
+        self.doric_pd = pd.DataFrame()
+        self.doric_pandas = pd.DataFrame()
+        self.abet_raw_data = pd.DataFrame()
+        self.anymaze_pandas = pd.DataFrame()
+        self.abet_pandas = pd.DataFrame()
+        self.abet_event_times = pd.DataFrame()
+        self.trial_definition_times = pd.DataFrame()
 
     """ load_abet_data - Loads in the ABET unprocessed data to the PhotometryData object. Also
     extracts the animal ID and date 
@@ -516,8 +534,9 @@ class PhotometryData:
         self.doric_pd = self.doric_pd.rename(columns={0: 'Time', 1: 'DeltaF'})
 
     """trial_separator - This function takes the extracted photometry data and parses it using the event data obtained
-    from the previous functions. This function will check to make sure the events are the same length. This function will
-    also calculate the z-scores using either the entire event or the time prior to the start of a trial (i.e. iti).
+    from the previous functions. This function will check to make sure the events are the same length. 
+    This function will also calculate the z-scores using either the entire event or the time prior to the start of a 
+    trial (i.e. iti).
     Arguments:
     whole_trial_normalize = A boolean value to determine whether to use the whole event to generate z-scores
     normalize_side = Denotes whether to use the pre or post trial data to normalize if not using whole trial.
