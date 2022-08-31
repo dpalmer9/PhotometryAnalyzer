@@ -466,7 +466,7 @@ class PhotometryData:
 
         doric_time = doric_ttl_active.iloc[0, 0]
         doric_time = doric_time.astype(float)
-        doric_time = np.asscalar(doric_time)
+        doric_time = doric_time.item(0)
         abet_time = abet_ttl_active.iloc[0, 0]
         abet_time = float(abet_time)
 
