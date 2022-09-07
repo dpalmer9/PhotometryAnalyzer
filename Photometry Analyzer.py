@@ -537,7 +537,7 @@ class PhotometryData:
         filtered_poly = np.polyfit(filtered_f0, filtered_f, 1)
         filtered_lobf = np.multiply(filtered_poly[0], filtered_f0) + filtered_poly[1]
 
-        delta_f = filtered_f - filtered_lobf
+        delta_f = (filtered_f - filtered_lobf) / filtered_lobf
 
         self.doric_pd = pd.DataFrame(time_data)
         self.doric_pd['DeltaF'] = delta_f
