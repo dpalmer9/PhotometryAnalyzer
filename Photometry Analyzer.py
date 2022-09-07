@@ -552,6 +552,7 @@ class PhotometryData:
     This function will also calculate the z-scores using either the entire event or the time prior to the start of a 
     trial (i.e. iti). The result of this function are a series of pandas dataframes corresponding to the different
     output types in the write_data function.
+    
     Arguments:
     whole_trial_normalize = A boolean value to determine whether to use the whole event to generate z-scores
     normalize_side = Denotes whether to use the pre or post trial data to normalize if not using whole trial.
