@@ -93,6 +93,7 @@ class PhotometryData:
     subset of columns is collected . Output is moved to pandas dataframe.
      Arguments:
      filepath = The filepath for the ABET unprocessed csv. Generated from GUI path """
+
     def load_abet_data(self, filepath):
         self.abet_file_path = filepath
         self.abet_loaded = True
@@ -150,6 +151,7 @@ class PhotometryData:
     uses a simple pandas import to grab all of the data. Unusual strings are converted to nan values.
     Arguments:
     filepath = the filepath of the AnyMaze session data. Generated from GUI path"""
+
     def load_anymaze_data(self, filepath):
         self.anymaze_file_path = filepath
         self.anymaze_loaded = True
@@ -173,16 +175,19 @@ class PhotometryData:
 
         if isinstance(start_event_group, list) and isinstance(end_event_group, list):
             event_group_list = start_event_group + end_event_group
-            filtered_abet = self.abet_pandas[self.abet_pandas.Item_Name.isin(event_group_list)]
+            filtered_abet = self.abet_pandas.loc[:, self.abet_pandas.Item_Name.isin(event_group_list)]
         elif isinstance(start_event_group, list) and not (isinstance(end_event_group, list)):
-            filtered_abet = self.abet_pandas.loc[((self.abet_pandas['Item_Name'].isin(start_event_group)) | (
-                    self.abet_pandas['Item_Name'] == str(end_event_group))) & (self.abet_pandas['Evnt_ID'] == '1')]
+            filtered_abet = self.abet_pandas.loc[((self.abet_pandas.loc[:, 'Item_Name'].isin(start_event_group)) | (
+                    self.abet_pandas.loc[:, 'Item_Name'] == str(end_event_group))) &
+                                                 (self.abet_pandas.loc[:, 'Evnt_ID'] == '1')]
         elif isinstance(end_event_group, list) and not (isinstance(start_event_group, list)):
-            filtered_abet = self.abet_pandas.loc[((self.abet_pandas['Item_Name'] == str(start_event_group)) | (
-                self.abet_pandas['Item_Name'].isin(end_event_group))) & (self.abet_pandas['Evnt_ID'] == '1')]
+            filtered_abet = self.abet_pandas.loc[((self.abet_pandas.loc[:, 'Item_Name'] == str(start_event_group)) | (
+                self.abet_pandas.loc[:, 'Item_Name'].isin(end_event_group))) &
+                                                 (self.abet_pandas.loc[:, 'Evnt_ID'] == '1')]
         else:
-            filtered_abet = self.abet_pandas.loc[((self.abet_pandas['Item_Name'] == str(start_event_group)) | (
-                    self.abet_pandas['Item_Name'] == str(end_event_group))) & (self.abet_pandas['Evnt_ID'] == '1')]
+            filtered_abet = self.abet_pandas.loc[((self.abet_pandas.loc[:, 'Item_Name'] == str(start_event_group)) | (
+                    self.abet_pandas.loc[:, 'Item_Name'] == str(end_event_group))) &
+                                                 (self.abet_pandas.loc[:, 'Evnt_ID'] == '1')]
 
         filtered_abet = filtered_abet.reset_index(drop=True)
         if filtered_abet.iloc[0, 3] != str(start_event_group):
@@ -243,26 +248,28 @@ class PhotometryData:
         variable_event_names = ['Variable Event']
 
         if start_event_id in touch_event_names:
-            filtered_abet = self.abet_pandas.loc[(self.abet_pandas[self.event_name_col] == str(start_event_id)) & (
-                    self.abet_pandas['Group_ID'] == str(start_event_group)) &
-                                                 (self.abet_pandas['Item_Name'] == str(start_event_item_name)) & (
-                                                         self.abet_pandas['Arg1_Value'] == str(start_event_position)), :
-                            ]
+            filtered_abet = self.abet_pandas.loc[
+                            (self.abet_pandas.loc[:, self.event_name_col] == str(start_event_id)) & (
+                                    self.abet_pandas.loc[:, 'Group_ID'] == str(start_event_group)) &
+                            (self.abet_pandas.loc[:, 'Item_Name'] == str(start_event_item_name)) & (
+                                    self.abet_pandas.loc[:, 'Arg1_Value'] ==
+                                    str(start_event_position)), :]
 
         else:
-            filtered_abet = self.abet_pandas.loc[(self.abet_pandas[self.event_name_col] == str(start_event_id)) & (
-                    self.abet_pandas['Group_ID'] == str(start_event_group)) &
-                                                 (self.abet_pandas['Item_Name'] == str(start_event_item_name)), :]
+            filtered_abet = self.abet_pandas.loc[(self.abet_pandas.loc[:, self.event_name_col] == str(start_event_id)) &
+                                                 (self.abet_pandas.loc[:, 'Group_ID'] == str(start_event_group)) &
+                                                 (self.abet_pandas.loc[:, 'Item_Name'] == str(start_event_item_name)), :
+                            ]
 
         if filter_event:
             if filter_event_id in condition_event_names:
                 filter_event_abet = self.abet_pandas.loc[
-                                    (self.abet_pandas[self.event_name_col] == str(filter_event_id)) & (
-                                            self.abet_pandas['Group_ID'] == str(filter_event_group)), :]
+                                    (self.abet_pandas.loc[:, self.event_name_col] == str(filter_event_id)) & (
+                                            self.abet_pandas.loc[:, 'Group_ID'] == str(filter_event_group)), :]
             elif filter_event_id in variable_event_names:
                 filter_event_abet = self.abet_pandas.loc[
-                                    (self.abet_pandas[self.event_name_col] == str(filter_event_id)) & (
-                                            self.abet_pandas['Item_Name'] == str(filter_event_item_name)), :]
+                                    (self.abet_pandas.loc[:, self.event_name_col] == str(filter_event_id)) & (
+                                            self.abet_pandas.loc[:, 'Item_Name'] == str(filter_event_item_name)), :]
 
         self.abet_event_times = filtered_abet.loc[:, self.time_var_name]
         self.abet_event_times = self.abet_event_times.reset_index(drop=True)
@@ -282,7 +289,7 @@ class PhotometryData:
 
                     filter_value = filter_event_abet.loc[sub_index, 'Item_Name']
                     if filter_value != filter_event_item_name:
-                        self.abet_event_times[index] = np.nan
+                        self.abet_event_times.iloc[index, :] = np.nan
 
                 self.abet_event_times = self.abet_event_times.dropna()
                 self.abet_event_times = self.abet_event_times.reset_index(drop=True)
@@ -299,7 +306,7 @@ class PhotometryData:
 
                     filter_value = filter_event_abet.loc[sub_index, 'Arg1_Value']
                     if filter_value != filter_event_position:
-                        self.abet_event_times[index] = np.nan
+                        self.abet_event_times.iloc[index, :] = np.nan
 
         abet_start_times = self.abet_event_times - extra_prior_time
         abet_end_times = self.abet_event_times + extra_follow_time
@@ -458,12 +465,12 @@ class PhotometryData:
         if not self.doric_loaded:
             return None
         try:
-            doric_ttl_active = self.doric_pandas.loc[(self.doric_pandas['TTL'] > 1.00), ]
+            doric_ttl_active = self.doric_pandas.loc[(self.doric_pandas['TTL'] > 1.00),]
         except KeyError:
             print('No TTL Signal Detected. Ending Analysis.')
             return
         try:
-            abet_ttl_active = self.abet_pandas.loc[(self.abet_pandas['Item_Name'] == 'TTL #1'), ]
+            abet_ttl_active = self.abet_pandas.loc[(self.abet_pandas['Item_Name'] == 'TTL #1'),]
         except KeyError:
             print('ABET II File missing TTL Pulse Output. Ending Analysis.')
             return
@@ -491,13 +498,13 @@ class PhotometryData:
             return None
 
         try:
-            doric_ttl_active = self.doric_pandas.loc[(self.doric_pandas['TTL'] > 1.00), ]
+            doric_ttl_active = self.doric_pandas.loc[(self.doric_pandas['TTL'] > 1.00),]
         except KeyError:
             print('No TTL Signal Detected. Ending Analysis.')
             return
 
         try:
-            anymaze_ttl_active = self.anymaze_pandas.loc[(self.anymaze_pandas['TTL Pulse active'] > 0), ]
+            anymaze_ttl_active = self.anymaze_pandas.loc[(self.anymaze_pandas['TTL Pulse active'] > 0),]
         except KeyError:
             print('Anymaze File missing TTL Pulse Output. Ending Analysis.')
             return
@@ -520,6 +527,7 @@ class PhotometryData:
     is used to calculate a delta-F value. A pandas dataframe with the time and delta-f values is created.
     Arguments:
     filter_frequency = The cut-off frequency used for the low-pass filter"""
+
     def doric_process(self, filter_frequency=6):
         doric_pandas_cut = self.doric_pandas[self.doric_pandas['Time'] >= 0]
 
@@ -692,19 +700,19 @@ class PhotometryData:
                     trial_deltaf = trial_deltaf.rename(columns={'Time': colname_1, 'zscore': colname_2,
                                                                 'DeltaF': colname_3, 'percent_change': colname_4})
 
-                    self.partial_dataframe = pd.concat([self.partial_dataframe, trial_deltaf[colname_2]],
+                    self.partial_dataframe = pd.concat([self.partial_dataframe, trial_deltaf.loc[:, colname_2]],
                                                        axis=1)
-                    self.partial_deltaf = pd.concat([self.partial_deltaf, trial_deltaf[colname_3]],
+                    self.partial_deltaf = pd.concat([self.partial_deltaf, trial_deltaf.loc[:, colname_3]],
                                                     axis=1)
                     self.final_dataframe = pd.concat(
-                        [self.final_dataframe, trial_deltaf[colname_1], trial_deltaf[colname_2]],
+                        [self.final_dataframe, trial_deltaf.loc[:, colname_1], trial_deltaf.loc[:, colname_2]],
                         axis=1)
-                    self.final_deltaf = pd.concat([self.final_deltaf, trial_deltaf[colname_1], trial_deltaf[colname_3]],
-                                                  axis=1)
-                    self.partial_percent = pd.concat([self.partial_percent, trial_deltaf[colname_4]],
+                    self.final_deltaf = pd.concat([self.final_deltaf, trial_deltaf.loc[:, colname_1],
+                                                   trial_deltaf.loc[:, colname_3]], axis=1)
+                    self.partial_percent = pd.concat([self.partial_percent, trial_deltaf.loc[:, colname_4]],
                                                      axis=1)
                     self.final_percent = pd.concat(
-                        [self.final_percent, trial_deltaf[colname_1], trial_deltaf[colname_4]],
+                        [self.final_percent, trial_deltaf.loc[:, colname_1], trial_deltaf.loc[:, colname_4]],
                         axis=1)
                     trial_num += 1
 
@@ -743,7 +751,6 @@ class PhotometryData:
                         trial_start_index_diff[trial_start_index_diff > 0] = np.nan
                         trial_start_index = trial_start_index_diff.abs().idxmin(skipna=True)
                         trial_start_window = self.trial_definition_times.iloc[trial_start_index, 0]
-                        print([(self.abet_time_list.loc[index, 'Start_Time'] + self.extra_prior), trial_start_window])
                         trial_iti_window = trial_start_window - float(trial_iti_pad)
                         iti_data = self.doric_pd.loc[(self.doric_pd.loc[:, 'Time'] >= trial_iti_window) & (
                                 self.doric_pd.loc[:, 'Time'] <= trial_start_window), 'DeltaF']
@@ -752,12 +759,11 @@ class PhotometryData:
                             self.abet_time_list.loc[index, 'End_Time']).abs().idxmin()
                         trial_end_window = self.trial_definition_times.iloc[trial_end_index, 0]
                         trial_iti_window = trial_end_window + trial_iti_pad
-                        iti_data = self.doric_pd.loc[(self.doric_pd['Time'] >= trial_end_window) & (
-                                self.doric_pd['Time'] <= trial_iti_window), 'DeltaF']
+                        iti_data = self.doric_pd.loc[(self.doric_pd.loc[:, 'Time'] >= trial_end_window) & (
+                                self.doric_pd.loc[:, 'Time'] <= trial_iti_window), 'DeltaF']
                     else:
                         print('no specified side to normalize')
                         return
-
                     if center_method == 'mean':
                         z_mean = iti_data.mean()
                         z_sd = iti_data.std()
@@ -775,9 +781,10 @@ class PhotometryData:
                             z_dev = np.absolute(np.subtract(deltaf_split, z_mean))
                             z_sd = z_dev.median()
 
-                trial_deltaf.loc[:, 'zscore'] = trial_deltaf.loc[:, 'DeltaF'].map(lambda x: ((x - z_mean) / z_sd))
-                trial_deltaf.loc[:, 'percent_change'] = trial_deltaf.loc[:, 'DeltaF'].map(
-                    lambda x: ((x - z_mean) / abs(z_mean)) * 100)
+                z_score = trial_deltaf.loc[:, 'DeltaF'].map(lambda x: ((x - z_mean) / z_sd))
+                trial_deltaf.loc[:, 'zscore'] = z_score
+                percent = trial_deltaf.loc[:, 'DeltaF'].map(lambda x: ((x - z_mean) / abs(z_mean)) * 100)
+                trial_deltaf.loc[:, 'percent_change'] = percent
 
                 colname_1 = 'Time Trial ' + str(trial_num)
                 colname_2 = 'Z-Score Trial ' + str(trial_num)
@@ -838,19 +845,19 @@ class PhotometryData:
                     trial_deltaf = trial_deltaf.rename(columns={'Time': colname_1, 'zscore': colname_2,
                                                                 'DeltaF': colname_3, 'percent_change': colname_4})
 
-                    self.partial_dataframe = pd.concat([self.partial_dataframe, trial_deltaf[colname_2]],
+                    self.partial_dataframe = pd.concat([self.partial_dataframe, trial_deltaf.loc[:, colname_2]],
                                                        axis=1)
-                    self.partial_deltaf = pd.concat([self.partial_deltaf, trial_deltaf[colname_3]],
+                    self.partial_deltaf = pd.concat([self.partial_deltaf, trial_deltaf.loc[:, colname_3]],
                                                     axis=1)
                     self.final_dataframe = pd.concat(
-                        [self.final_dataframe, trial_deltaf[colname_1], trial_deltaf[colname_2]],
+                        [self.final_dataframe, trial_deltaf.loc[:, colname_1], trial_deltaf.loc[:, colname_2]],
                         axis=1)
-                    self.final_deltaf = pd.concat([self.final_deltaf, trial_deltaf[colname_1], trial_deltaf[colname_3]],
-                                                  axis=1)
-                    self.partial_percent = pd.concat([self.partial_percent, trial_deltaf[colname_4]],
+                    self.final_deltaf = pd.concat([self.final_deltaf, trial_deltaf.loc[:, colname_1],
+                                                   trial_deltaf.loc[:, colname_3]], axis=1)
+                    self.partial_percent = pd.concat([self.partial_percent, trial_deltaf.loc[:, colname_4]],
                                                      axis=1)
                     self.final_percent = pd.concat(
-                        [self.final_percent, trial_deltaf[colname_1], trial_deltaf[colname_4]],
+                        [self.final_percent, trial_deltaf.loc[:, colname_1], trial_deltaf.loc[:, colname_4]],
                         axis=1)
                     trial_num += 1
 
@@ -990,19 +997,19 @@ class PhotometryData:
                     trial_deltaf = trial_deltaf.rename(columns={'Time': colname_1, 'zscore': colname_2,
                                                                 'DeltaF': colname_3, 'percent_change': colname_4})
 
-                    self.partial_dataframe = pd.concat([self.partial_dataframe, trial_deltaf[colname_2]],
+                    self.partial_dataframe = pd.concat([self.partial_dataframe, trial_deltaf.loc[:, colname_2]],
                                                        axis=1)
-                    self.partial_deltaf = pd.concat([self.partial_deltaf, trial_deltaf[colname_3]],
+                    self.partial_deltaf = pd.concat([self.partial_deltaf, trial_deltaf.loc[:, colname_3]],
                                                     axis=1)
                     self.final_dataframe = pd.concat(
-                        [self.final_dataframe, trial_deltaf[colname_1], trial_deltaf[colname_2]],
+                        [self.final_dataframe, trial_deltaf.loc[:, colname_1], trial_deltaf.loc[:, colname_2]],
                         axis=1)
-                    self.final_deltaf = pd.concat([self.final_deltaf, trial_deltaf[colname_1], trial_deltaf[colname_3]],
-                                                  axis=1)
-                    self.partial_percent = pd.concat([self.partial_percent, trial_deltaf[colname_4]],
+                    self.final_deltaf = pd.concat([self.final_deltaf, trial_deltaf.loc[:, colname_1],
+                                                   trial_deltaf.loc[:, colname_3]], axis=1)
+                    self.partial_percent = pd.concat([self.partial_percent, trial_deltaf.loc[:, colname_4]],
                                                      axis=1)
                     self.final_percent = pd.concat(
-                        [self.final_percent, trial_deltaf[colname_1], trial_deltaf[colname_4]],
+                        [self.final_percent, trial_deltaf.loc[:, colname_1], trial_deltaf.loc[:, colname_4]],
                         axis=1)
                     trial_num += 1
 
@@ -1014,6 +1021,7 @@ class PhotometryData:
     output_data = The structure that is requested for output. can include non-transformed (Full),
     event only (Simple), and event + time (Timed)
     filename_override = A string that will override any default file naming conventions."""
+
     def write_data(self, output_data, filename_override=''):
         processed_list = [1, 'Full', 'full']
         partial_list = [3, 'Simple', 'simple']
