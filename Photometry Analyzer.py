@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 from scipy import signal
 
+pd.options.mode.chained_assignment = None
+
 
 class PhotometryData:
     def __init__(self):
@@ -192,7 +194,7 @@ class PhotometryData:
         filtered_abet = filtered_abet.reset_index(drop=True)
         if filtered_abet.iloc[0, 3] != str(start_event_group):
             filtered_abet = filtered_abet.drop([0])
-            print('FAILED')
+            print('First Trial Event not Trial Start. Removing Instance.')
         trial_times = filtered_abet.loc[:, self.time_var_name]
         trial_times = trial_times.reset_index(drop=True)
         start_times = trial_times.iloc[::2]
@@ -781,9 +783,11 @@ class PhotometryData:
                             z_dev = np.absolute(np.subtract(deltaf_split, z_mean))
                             z_sd = z_dev.median()
 
-                z_score = trial_deltaf.loc[:, 'DeltaF'].map(lambda x: ((x - z_mean) / z_sd))
+                z_score = trial_deltaf.loc[:, 'DeltaF']
+                z_score = z_score.map(lambda x: ((x - z_mean) / z_sd))
                 trial_deltaf.loc[:, 'zscore'] = z_score
-                percent = trial_deltaf.loc[:, 'DeltaF'].map(lambda x: ((x - z_mean) / abs(z_mean)) * 100)
+                percent = trial_deltaf.loc[:, 'DeltaF']
+                percent = percent.map(lambda x: ((x - z_mean) / abs(z_mean)) * 100)
                 trial_deltaf.loc[:, 'percent_change'] = percent
 
                 colname_1 = 'Time Trial ' + str(trial_num)
